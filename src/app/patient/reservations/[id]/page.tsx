@@ -336,7 +336,7 @@ export default function PatientReservationDetailPage() {
                         <p className="text-gray-600 mb-4">Complete your pre-care intake to help the doctor prepare for your appointment.</p>
                         <button
                           onClick={handleIntakeClick}
-                          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium"
+                          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium cursor-pointer"
                         >
                           Start Intake
                         </button>
@@ -357,7 +357,7 @@ export default function PatientReservationDetailPage() {
                 {canStartIntake && (
                   <button
                     onClick={handleIntakeClick}
-                    className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium"
+                    className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium cursor-pointer"
                   >
                     Start Intake
                   </button>

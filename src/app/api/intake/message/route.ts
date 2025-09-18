@@ -29,7 +29,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
     // Update the database record with the latest session state
     const session = getSession(sessionId);
     if (session) {
-      await prisma.intakeSession.upsert({
+      const intakeSession = await prisma.intakeSession.upsert({
         where: { sessionId: sessionId },
         update: {
           currentStep: session.current_step,
@@ -45,6 +45,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
           progress: session.progress
         }
       });
+
+      // If the intake is completed (progress = 100), link it to the reservation
+      if (session.progress === 100 && intakeSession.reservationId) {
+        await prisma.reservation.update({
+          where: { id: intakeSession.reservationId },
+          data: { intakeSessionId: intakeSession.id }
+        });
+      }
     }
     
     const response: MessageIntakeResponse = {

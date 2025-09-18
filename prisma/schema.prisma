@@ -109,6 +109,7 @@ model IntakeSession {
   answers     Json     // Store the intake answers as JSON
   flags       Json     // Store flags like editMode, skipped fields
   progress    Int      // 0-100
+  reservationId String? // Store the reservation ID for linking
   
   // Relations
   reservation Reservation?

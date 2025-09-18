@@ -29,7 +29,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<StartInta
         currentStep: session.current_step,
         answers: session.answers,
         flags: session.flags,
-        progress: session.progress
+        progress: session.progress,
+        reservationId: reservationId || null
       }
     });
     
