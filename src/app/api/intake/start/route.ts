@@ -39,7 +39,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<StartInta
     if (reservationId) {
       await prisma.reservation.update({
         where: { id: reservationId },
-        data: { intakeSessionId: sessionId }
+        data: { intakeSessionId: intakeSession.id } // Use the database ID, not the sessionId
       });
     }
     

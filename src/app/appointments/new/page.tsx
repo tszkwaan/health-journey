@@ -13,6 +13,7 @@ export default function NewAppointmentPage() {
   const [loading, setLoading] = useState(true);
   const [selectedSlot, setSelectedSlot] = useState<{doctorId: string, slotId: string} | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [booking, setBooking] = useState(false);
 
   // Redirect if not authenticated
@@ -79,7 +80,7 @@ export default function NewAppointmentPage() {
   };
 
   const handleConfirmBooking = async () => {
-    console.log('handleConfirmBooking called', { selectedSlot, userId: session?.user?.id, status });
+    console.log('handleConfirmBooking called', { selectedSlot, userId: (session?.user as any)?.id, status });
     
     if (!selectedSlot) {
       console.log('No slot selected');
@@ -87,7 +88,7 @@ export default function NewAppointmentPage() {
       return;
     }
 
-    if (!session?.user?.id) {
+    if (!(session?.user as any)?.id) {
       console.log('User not authenticated, redirecting to login');
       alert('You need to be logged in to book an appointment. Redirecting to login...');
       router.push('/login');
@@ -117,8 +118,11 @@ export default function NewAppointmentPage() {
       if (response.ok) {
         const reservation = await response.json();
         console.log('Booking successful:', reservation);
-        // Redirect to intake with reservation ID
-        router.push(`/intake?reservationId=${reservation.reservation.id}`);
+        // Show success modal instead of redirecting
+        setShowConfirmModal(false);
+        setShowSuccessModal(true);
+        // Reset selected slot
+        setSelectedSlot(null);
       } else {
         const error = await response.json();
         console.error('Booking failed:', error);
@@ -332,6 +336,46 @@ export default function NewAppointmentPage() {
                 >
                   {booking ? 'Booking...' : 'Confirm'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Modal */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                  <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                  Reserve Successfully!
+                </h3>
+                <p className="text-gray-600 mb-6" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                  Your appointment has been booked successfully. You can now complete your pre-care intake.
+                </p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setShowSuccessModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
+                    style={{ fontFamily: 'var(--font-noto-sans)' }}
+                  >
+                    Stay Here
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSuccessModal(false);
+                      router.push('/intake');
+                    }}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 cursor-pointer"
+                    style={{ fontFamily: 'var(--font-noto-sans)' }}
+                  >
+                    Complete Intake
+                  </button>
+                </div>
               </div>
             </div>
           </div>
