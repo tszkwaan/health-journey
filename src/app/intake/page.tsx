@@ -9,6 +9,7 @@ export default function IntakePage() {
   const [lang, setLang] = useState<'en'|'zh-HK'>('en');
   const [live, setLive] = useState<string>("");
   const [finals, setFinals] = useState<string[]>([]);
+  const [combined, setCombined] = useState<string>("");
   const clientRef = useRef<STTWebSocketClient | null>(null);
   const recogRef = useRef<SpeechRecognition | null>(null);
 
@@ -30,8 +31,18 @@ export default function IntakePage() {
     const url = `ws://localhost:8000/api/voice/ws/stt?sessionId=${sessionId}`;
     const c = new STTWebSocketClient(url);
     c.connect((e: STTEvent) => {
-      if (e.type === 'partial_transcript') setLive(e.text);
-      if (e.type === 'final_transcript') setFinals((prev) => [...prev, e.text]);
+      if (e.type === 'partial_transcript') {
+        setLive(e.text);
+        setCombined([...(finals), e.text].join(' ').trim());
+      }
+      if (e.type === 'final_transcript') {
+        setFinals((prev) => {
+          const next = [...prev, e.text];
+          setCombined(next.join(' ').trim());
+          return next;
+        });
+        setLive("");
+      }
     });
     clientRef.current = c;
 
@@ -55,11 +66,17 @@ export default function IntakePage() {
       }
       if (interim) {
         setLive(interim);
+        setCombined([...(finals), interim].join(' ').trim());
         clientRef.current?.sendPartial(interim);
       }
       if (finalChunk) {
-        setFinals((prev) => [...prev, finalChunk]);
+        setFinals((prev) => {
+          const next = [...prev, finalChunk];
+          setCombined(next.join(' ').trim());
+          return next;
+        });
         clientRef.current?.sendFinal(finalChunk);
+        setLive("");
       }
     };
     rec.onerror = (e) => {
@@ -74,7 +91,7 @@ export default function IntakePage() {
   };
 
   const confirm = async () => {
-    const text = (finals.join(' ').trim() || live).trim();
+    const text = (combined || finals.join(' ') || live).trim();
     if (!sessionId || !text) return;
     await fetch(`http://localhost:8000/api/intake/${sessionId}/step`, {
       method: 'POST',
@@ -82,15 +99,19 @@ export default function IntakePage() {
       body: JSON.stringify({ step: stepKey, language: lang, text, confirmed: true }),
     });
     setStep(stepKey, { language: lang, text, confirmed: true });
-    setLive(""); setFinals([]);
-    if (currentIndex < orderedSteps.length - 1) next();
+    setLive(""); setFinals([]); setCombined("");
+    if (currentIndex < orderedSteps.length - 1) {
+      next();
+    }
+    // Print summary to console after each confirmation
+    await generateSummary();
   };
 
   const generateSummary = async () => {
     if (!sessionId) return;
     const res = await fetch(`http://localhost:8000/api/intake/${sessionId}/summary`, { method: 'POST' });
     const summary = await res.json();
-    alert(JSON.stringify(summary, null, 2));
+    console.log('Structured Intake Summary', summary);
   };
 
   return (
@@ -108,15 +129,11 @@ export default function IntakePage() {
         <button onClick={connect} className="px-4 py-2 rounded bg-emerald-600 text-white">Start Mic</button>
         <button onClick={stop} className="px-4 py-2 rounded border">Stop</button>
         <button onClick={confirm} className="px-4 py-2 rounded bg-indigo-600 text-white">Confirm Step</button>
-        <button onClick={generateSummary} className="px-4 py-2 rounded border">Generate Summary</button>
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm text-gray-600">Live transcript</label>
-        <textarea value={live} onChange={(e)=>setLive(e.target.value)} className="w-full border rounded p-2" rows={3} />
-        {!!finals.length && (
-          <div className="text-sm text-gray-700">Final: {finals.join(' ')}</div>
-        )}
+        <label className="text-sm text-gray-600">Transcript (editable)</label>
+        <textarea value={combined} onChange={(e)=>setCombined(e.target.value)} className="w-full border rounded p-2" rows={3} />
       </div>
     </div>
   );
