@@ -15,6 +15,7 @@ export default function IntakePage() {
 
   const stepKey = orderedSteps[currentIndex];
   const prompt = prompts[lang][stepKey as keyof typeof prompts['en']];
+  const progress = Math.round(((currentIndex + 1) / orderedSteps.length) * 100);
 
   useEffect(() => {
     async function bootstrap() {
@@ -92,18 +93,19 @@ export default function IntakePage() {
 
   const confirm = async () => {
     const text = (combined || finals.join(' ') || live).trim();
-    if (!sessionId || !text) return;
-    await fetch(`http://localhost:8000/api/intake/${sessionId}/step`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ step: stepKey, language: lang, text, confirmed: true }),
-    });
-    setStep(stepKey, { language: lang, text, confirmed: true });
+    if (sessionId && text) {
+      await fetch(`http://localhost:8000/api/intake/${sessionId}/step`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step: stepKey, language: lang, text, confirmed: true }),
+      });
+      setStep(stepKey, { language: lang, text, confirmed: true });
+    }
     setLive(""); setFinals([]); setCombined("");
     if (currentIndex < orderedSteps.length - 1) {
       next();
     }
-    // Print summary to console after each confirmation
+    // Print summary to console after each action
     await generateSummary();
   };
 
@@ -115,25 +117,38 @@ export default function IntakePage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Pre‑Care Intake</h1>
-      </div>
+    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-b from-indigo-50 to-white">
+      <div className="mx-auto max-w-3xl px-4 py-12">
+        <div className="rounded-2xl bg-white/80 shadow-lg border p-6 md:p-8">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <div>Pre‑Care Intake</div>
+            <div>Step {currentIndex + 1} of {orderedSteps.length}</div>
+          </div>
+          <div className="mt-2 h-1.5 w-full rounded-full bg-violet-100">
+            <div className="h-1.5 rounded-full bg-violet-500" style={{ width: `${progress}%` }} />
+          </div>
 
-      <div className="p-4 rounded border bg-gray-50">
-        <p className="font-medium mb-2">Step {currentIndex+1} of {orderedSteps.length}</p>
-        <p className="text-gray-700">{prompt}</p>
-      </div>
+          <h2 className="mt-6 text-2xl md:text-3xl font-extrabold tracking-tight text-gray-900">{prompt}</h2>
 
-      <div className="flex gap-2">
-        <button onClick={connect} className="px-4 py-2 rounded bg-emerald-600 text-white">Start Mic</button>
-        <button onClick={stop} className="px-4 py-2 rounded border">Stop</button>
-        <button onClick={confirm} className="px-4 py-2 rounded bg-indigo-600 text-white">Confirm Step</button>
-      </div>
+          <div className="mt-4">
+            <textarea
+              value={combined}
+              onChange={(e)=>setCombined(e.target.value)}
+              placeholder="Describe your symptoms or concerns..."
+              className="w-full rounded-xl border border-violet-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-200 p-4 min-h-[140px]"
+            />
+          </div>
 
-      <div className="space-y-2">
-        <label className="text-sm text-gray-600">Transcript (editable)</label>
-        <textarea value={combined} onChange={(e)=>setCombined(e.target.value)} className="w-full border rounded p-2" rows={3} />
+          <div className="mt-6 flex items-center">
+            <div className="flex gap-3">
+              <button onClick={connect} className="px-4 py-2 rounded-full bg-violet-100 text-violet-700 text-sm font-medium hover:bg-violet-200 transition">Start Mic</button>
+              <button onClick={stop} className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition">Stop</button>
+            </div>
+            <div className="ml-auto">
+              <button onClick={confirm} className="px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">Next</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
