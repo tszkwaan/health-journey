@@ -183,7 +183,12 @@ export default function DoctorAppointmentsPage() {
                 {appointments.today.map((appointment) => {
                   const intakeStatus = getIntakeStatus(appointment);
                   return (
-                    <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <Link 
+                      key={appointment.id} 
+                      href={`/doctor/reservations/${appointment.id}`}
+                      className="block"
+                    >
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-semibold">
                           {appointment.patient.name.charAt(0)}
@@ -203,7 +208,8 @@ export default function DoctorAppointmentsPage() {
                           {getIntakeStatusText(intakeStatus)}
                         </span>
                       </div>
-                    </div>
+                      </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -220,7 +226,12 @@ export default function DoctorAppointmentsPage() {
                 {appointments.tomorrow.map((appointment) => {
                   const intakeStatus = getIntakeStatus(appointment);
                   return (
-                    <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <Link 
+                      key={appointment.id} 
+                      href={`/doctor/reservations/${appointment.id}`}
+                      className="block"
+                    >
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-400 flex items-center justify-center text-white font-semibold">
                           {appointment.patient.name.charAt(0)}
@@ -240,7 +251,8 @@ export default function DoctorAppointmentsPage() {
                           {getIntakeStatusText(intakeStatus)}
                         </span>
                       </div>
-                    </div>
+                      </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -257,7 +269,12 @@ export default function DoctorAppointmentsPage() {
                 {appointments.nextWeek.map((appointment) => {
                   const intakeStatus = getIntakeStatus(appointment);
                   return (
-                    <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <Link 
+                      key={appointment.id} 
+                      href={`/doctor/reservations/${appointment.id}`}
+                      className="block"
+                    >
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-semibold">
                           {appointment.patient.name.charAt(0)}
@@ -277,7 +294,8 @@ export default function DoctorAppointmentsPage() {
                           {getIntakeStatusText(intakeStatus)}
                         </span>
                       </div>
-                    </div>
+                      </div>
+                    </Link>
                   );
                 })}
               </div>

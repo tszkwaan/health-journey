@@ -1,104 +1,156 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { updateReservation, cancelReservation, linkIntakeSessionToReservation } from '@/lib/reservation';
-import { ReservationStatus } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user || !(session.user as any).id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    // Get the user to check if they're a doctor
+    const user = await prisma.user.findUnique({
+      where: { id: (session.user as any).id },
+      include: {
+        doctorProfile: true,
+      },
+    });
+
+    if (!user || user.role !== 'DOCTOR' || !user.doctorProfile) {
+      return NextResponse.json({ error: 'Doctor profile not found' }, { status: 403 });
+    }
+
+    // Fetch the reservation with all related data
+    const reservation = await prisma.reservation.findUnique({
+      where: { id },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        timeSlot: {
+          select: {
+            id: true,
+            date: true,
+            startTime: true,
+            endTime: true
+          }
+        },
+        intakeSession: {
+          select: {
+            id: true,
+            progress: true,
+            answers: true,
+          }
+        }
+      }
+    });
+
+    if (!reservation) {
+      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
+    }
+
+    // Check if the reservation belongs to this doctor
+    if (reservation.doctorId !== user.doctorProfile.id) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    return NextResponse.json(reservation);
+
+  } catch (error) {
+    console.error('Error fetching reservation:', error);
+    return NextResponse.json({ error: 'Failed to fetch reservation' }, { status: 500 });
+  }
+}
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+
+    if (!session || !session.user || !(session.user as any).id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
-    const { status, notes, intakeSessionId } = body;
 
-    // Validate status if provided
-    if (status && !Object.values(ReservationStatus).includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid reservation status' },
-        { status: 400 }
-      );
+    // Get the user to check if they're a doctor
+    const user = await prisma.user.findUnique({
+      where: { id: (session.user as any).id },
+      include: {
+        doctorProfile: true,
+      },
+    });
+
+    if (!user || user.role !== 'DOCTOR' || !user.doctorProfile) {
+      return NextResponse.json({ error: 'Doctor profile not found' }, { status: 403 });
     }
 
-    // Handle linking intake session
-    if (intakeSessionId) {
-      const reservation = await linkIntakeSessionToReservation(id, intakeSessionId);
-      return NextResponse.json({ reservation });
+    // Check if the reservation belongs to this doctor
+    const reservation = await prisma.reservation.findUnique({
+      where: { id },
+      select: { doctorId: true }
+    });
+
+    if (!reservation) {
+      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
     }
 
-    // Handle status/notes update
-    const updates: any = {};
-    if (status) updates.status = status;
-    if (notes !== undefined) updates.notes = notes;
-
-    if (Object.keys(updates).length === 0) {
-      return NextResponse.json(
-        { error: 'No valid updates provided' },
-        { status: 400 }
-      );
+    if (reservation.doctorId !== user.doctorProfile.id) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    const reservation = await updateReservation(id, updates);
+    // Update the reservation
+    const updatedReservation = await prisma.reservation.update({
+      where: { id },
+      data: {
+        status: body.status,
+        notes: body.notes
+      },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        timeSlot: {
+          select: {
+            id: true,
+            date: true,
+            startTime: true,
+            endTime: true
+          }
+        },
+        intakeSession: {
+          select: {
+            id: true,
+            progress: true,
+            answers: true,
+          }
+        }
+      }
+    });
 
-    return NextResponse.json({ reservation });
+    return NextResponse.json(updatedReservation);
+
   } catch (error) {
     console.error('Error updating reservation:', error);
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to update reservation' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const reservation = await cancelReservation(id);
-
-    return NextResponse.json({ reservation });
-  } catch (error) {
-    console.error('Error cancelling reservation:', error);
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to cancel reservation' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to update reservation' }, { status: 500 });
   }
 }
