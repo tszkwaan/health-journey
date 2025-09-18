@@ -1,9 +1,6 @@
 import { PrismaClient, ReservationStatus } from '@prisma/client';
 import { Doctor, TimeSlot, Reservation, CreateReservationRequest, GetAvailableSlotsRequest } from '@/types/reservation';
-
-const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-});
+import { prisma } from './prisma';
 
 // Generate time slots for a doctor on a specific date
 export async function generateTimeSlots(doctorId: string, date: Date): Promise<TimeSlot[]> {

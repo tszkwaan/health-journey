@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { processIntakeMessage } from '@/lib/intake/langgraph';
 import { MessageIntakeRequest, MessageIntakeResponse } from '@/lib/intake/types';
 import { getSession } from '@/lib/intake/state';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest): Promise<NextResponse<MessageIntakeResponse>> {
   try {

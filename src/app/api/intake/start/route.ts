@@ -3,9 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createSession } from '@/lib/intake/state';
 import { generateUtterance } from '@/lib/intake/llm';
 import { StartIntakeResponse } from '@/lib/intake/types';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest): Promise<NextResponse<StartIntakeResponse>> {
   try {
