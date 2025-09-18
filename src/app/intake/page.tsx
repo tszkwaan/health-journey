@@ -16,6 +16,7 @@ export default function IntakePage() {
   const stepKey = orderedSteps[currentIndex];
   const prompt = prompts[lang][stepKey as keyof typeof prompts['en']];
   const progress = Math.round(((currentIndex + 1) / orderedSteps.length) * 100);
+  const isGreeting = currentIndex === 0;
 
   useEffect(() => {
     async function bootstrap() {
@@ -130,20 +131,24 @@ export default function IntakePage() {
 
           <h2 className="mt-6 text-2xl md:text-3xl font-extrabold tracking-tight text-gray-900">{prompt}</h2>
 
-          <div className="mt-4">
-            <textarea
-              value={combined}
-              onChange={(e)=>setCombined(e.target.value)}
-              placeholder="Describe your symptoms or concerns..."
-              className="w-full rounded-xl border border-violet-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-200 p-4 min-h-[140px]"
-            />
-          </div>
+          {!isGreeting && (
+            <div className="mt-4">
+              <textarea
+                value={combined}
+                onChange={(e)=>setCombined(e.target.value)}
+                placeholder="Describe your symptoms or concerns..."
+                className="w-full rounded-xl border border-violet-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-200 p-4 min-h-[140px]"
+              />
+            </div>
+          )}
 
           <div className="mt-6 flex items-center">
-            <div className="flex gap-3">
-              <button onClick={connect} className="px-4 py-2 rounded-full bg-violet-100 text-violet-700 text-sm font-medium hover:bg-violet-200 transition">Start Mic</button>
-              <button onClick={stop} className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition">Stop</button>
-            </div>
+            {!isGreeting && (
+              <div className="flex gap-3">
+                <button onClick={connect} className="px-4 py-2 rounded-full bg-violet-100 text-violet-700 text-sm font-medium hover:bg-violet-200 transition">Start Mic</button>
+                <button onClick={stop} className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition">Stop</button>
+              </div>
+            )}
             <div className="ml-auto">
               <button onClick={confirm} className="px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">Next</button>
             </div>
