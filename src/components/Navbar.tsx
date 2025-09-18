@@ -8,37 +8,45 @@ export default function Navbar() {
   const role = (session?.user as any)?.role as "PATIENT" | "DOCTOR" | undefined;
 
   return (
-    <nav className="w-full border-b border-violet-200 bg-white/80 backdrop-blur sticky top-0 z-50">
-      <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+    <nav className="w-full border-b border-purple-200 sticky top-0 z-50 shadow-sm" style={{ backgroundColor: '#E6DFFF' }}>
+      <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-2">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-violet-600 text-white text-xs font-semibold">◆</span>
-          <span className="font-semibold">HealthJourney</span>
+        <Link href="/" className="flex items-center gap-3">
+          <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 text-white text-sm font-bold shadow-lg">
+            ◆
+          </div>
+          <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+            HealthFirst
+          </span>
         </Link>
 
         {/* Center nav */}
-        <div className="hidden md:flex items-center gap-6 text-sm text-gray-700">
-          <Link href="/intake" className="hover:text-black">Intake</Link>
+        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-700">
+          <Link href="/intake" className="hover:text-purple-600 transition-colors duration-200">Intake</Link>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {!isAuthed && (
             <>
-              <Link href="/login" className="px-4 py-2 rounded-full bg-violet-100 text-violet-700 text-sm font-medium hover:bg-violet-200 transition">Login</Link>
-              <Link href="/register/patient" className="px-4 py-2 rounded-full bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">Patient Register</Link>
+              <Link href="/login" className="px-5 py-2.5 rounded-full bg-purple-100 text-purple-700 text-sm font-semibold hover:bg-purple-200 transition-all duration-200 shadow-sm">
+                Login
+              </Link>
+              <Link href="/register/patient" className="px-5 py-2.5 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-lg">
+                Patient Register
+              </Link>
             </>
           )}
           {isAuthed && (
             <>
               {role === "PATIENT" && (
-                <Link href="/appointments/new" className="px-4 py-2 rounded-full bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">
+                <Link href="/appointments/new" className="px-5 py-2.5 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-lg">
                   Make Appointment
                 </Link>
               )}
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="px-4 py-2 rounded-full border border-gray-300 text-sm font-medium hover:bg-gray-50 transition"
+                className="px-5 py-2.5 rounded-full border-2 border-purple-200 text-purple-700 text-sm font-semibold hover:bg-purple-50 hover:border-purple-300 transition-all duration-200"
               >
                 Logout
               </button>

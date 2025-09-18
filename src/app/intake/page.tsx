@@ -20,7 +20,7 @@ export default function IntakePage() {
   const prompt = prompts['en'][stepKey as keyof typeof prompts['en']];
   const progress = Math.round(((currentIndex + 1) / orderedSteps.length) * 100);
   const isGreeting = currentIndex === 0;
-  const isLast = currentIndex === orderedSteps.length - 1;
+  const isLastStep = currentIndex === orderedSteps.length - 1;
 
   useEffect(() => {
     async function bootstrap() {
@@ -112,59 +112,94 @@ export default function IntakePage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-b from-indigo-50 to-white">
-      <div className="mx-auto max-w-3xl px-4 py-12">
-        <div className="rounded-2xl bg-white/80 shadow-lg border p-6 md:p-8">
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <div>Pre‑Care Intake</div>
-            <div>Step {currentIndex + 1} of {orderedSteps.length}</div>
+    <div className="min-h-screen" style={{
+      background: 'linear-gradient(180deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%)'
+    }}>
+      <div className="mx-auto max-w-4xl px-4 py-16">
+        <div className="rounded-3xl bg-white shadow-2xl border border-purple-100 p-8 md:p-10 h-[500px] flex flex-col">
+          <div className="flex items-center justify-between text-sm text-gray-600 mb-3" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+            <div className="font-medium">Pre‑Care Intake</div>
+            <div className="font-semibold">Step {currentIndex + 1} of {orderedSteps.length}</div>
           </div>
-          <div className="mt-2 h-1.5 w-full rounded-full bg-violet-100">
-            <div className="h-1.5 rounded-full bg-violet-500" style={{ width: `${progress}%` }} />
+          
+          {/* Progress bar */}
+          <div className="mb-8 h-2 w-full rounded-full bg-gray-200">
+            <div 
+              className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 transition-all duration-500" 
+              style={{ width: `${progress}%` }} 
+            />
           </div>
 
-          <h2 className="mt-6 text-2xl md:text-3xl font-extrabold tracking-tight text-gray-900">{prompt}</h2>
+          {/* Main question */}
+          <h2 className="text-3xl md:text-4xl text-gray-900 mb-6 leading-tight flex-shrink-0" style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}>{prompt}</h2>
 
           {!isGreeting && (
-            <div className="mt-4">
+            <div className="flex-1 flex flex-col mb-6">
               <textarea
                 value={combined}
                 onChange={(e)=>setCombined(e.target.value)}
                 placeholder="Describe your symptoms or concerns..."
-                className="w-full rounded-xl border border-violet-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-200 p-4 min-h-[140px]"
+                className="w-full rounded-2xl border-2 border-purple-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 p-6 flex-1 text-lg placeholder-gray-400 resize-none transition-all duration-200"
+                style={{ fontFamily: 'var(--font-noto-sans)' }}
               />
             </div>
           )}
 
-          <div className="mt-6 flex items-center">
+          {/* Action buttons */}
+          <div className="flex items-center justify-between flex-shrink-0 mt-auto">
             {!isGreeting && (
-              <div className="flex gap-3">
-                <button onClick={connect} className="px-4 py-2 rounded-full bg-violet-100 text-violet-700 text-sm font-medium hover:bg-violet-200 transition">Start Mic</button>
-                <button onClick={stop} className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition">Stop</button>
+              <div className="flex gap-4">
+                <button 
+                  onClick={connect} 
+                  className="flex items-center gap-2 px-6 py-3 rounded-full bg-purple-100 text-purple-700 text-sm font-semibold hover:bg-purple-200 transition-all duration-200 shadow-sm cursor-pointer"
+                  style={{ fontFamily: 'var(--font-noto-sans)' }}
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                  </svg>
+                  Start Mic
+                </button>
+                <button 
+                  onClick={stop} 
+                  className="flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-lg cursor-pointer"
+                  style={{ fontFamily: 'var(--font-noto-sans)' }}
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  Stop
+                </button>
               </div>
             )}
+            
             <div className="ml-auto">
-              <button onClick={async()=>{
-                await confirm();
-                if (isLast) {
-                  // Finalize: ask backend to generate summary and fetch full intake for doctor reference
-                  if (!sessionId) return;
-                  try {
-                    const [summaryRes, intakeRes] = await Promise.all([
-                      fetch(`http://localhost:8000/api/intake/${sessionId}/summary`, { method: 'POST' }),
-                      fetch(`http://localhost:8000/api/intake/${sessionId}`),
-                    ]);
-                    const summary = await summaryRes.json();
-                    const intake = await intakeRes.json();
-                    console.log('Final Summary', summary);
-                    console.log('Complete Intake Record', intake);
-                    alert('Submitted. Summary generated for doctor review.');
-                  } catch (e) {
-                    console.error(e);
-                    alert('Submitted, but failed to fetch summary.');
+              <button 
+                onClick={async()=>{
+                  await confirm();
+                  if (isLastStep) {
+                    // Finalize: ask backend to generate summary and fetch full intake for doctor reference
+                    if (!sessionId) return;
+                    try {
+                      const [summaryRes, intakeRes] = await Promise.all([
+                        fetch(`http://localhost:8000/api/intake/${sessionId}/summary`, { method: 'POST' }),
+                        fetch(`http://localhost:8000/api/intake/${sessionId}`),
+                      ]);
+                      const summary = await summaryRes.json();
+                      const intake = await intakeRes.json();
+                      console.log('Final Summary', summary);
+                      console.log('Complete Intake Record', intake);
+                      alert('Submitted. Summary generated for doctor review.');
+                    } catch (e) {
+                      console.error(e);
+                      alert('Submitted, but failed to fetch summary.');
+                    }
                   }
-                }
-              }} className="px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">{isLast ? 'Submit' : 'Next'}</button>
+                }} 
+                className="px-8 py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg cursor-pointer"
+                style={{ fontFamily: 'var(--font-noto-sans)' }}
+              >
+                {isLastStep ? 'Submit' : 'Next'}
+              </button>
             </div>
           </div>
         </div>
