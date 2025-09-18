@@ -109,19 +109,41 @@ def generate_summary(db: Session, session_id: str):
 
     # Optional LLM summarization
     adapter = get_summary_adapter()
+    print(f"🔍 DEBUG: Using summary adapter: {type(adapter).__name__}")
+    
     try:
         steps_payload = [
             {"step": s.step, "text": s.text, "language": s.language, "confirmed": s.confirmed, "ts": s.created_at.isoformat()}
             for s in steps
         ]
+        print(f"🔍 DEBUG: Steps payload for LLM: {steps_payload}")
+        
         llm_summary = None
         # Adapter may be async; call defensively
         import asyncio
-        if asyncio.get_event_loop().is_running():
-            llm_summary = asyncio.get_event_loop().run_until_complete(adapter.summarize(steps_payload))
-        else:
+        try:
+            # Try to get the current event loop
+            loop = asyncio.get_running_loop()
+            # If we're in an async context, create a task
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, adapter.summarize(steps_payload))
+                llm_summary = future.result(timeout=30)
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run
             llm_summary = asyncio.run(adapter.summarize(steps_payload))
-    except Exception:
+        
+        print(f"🔍 DEBUG: LLM Summary result: {llm_summary}")
+        if llm_summary:
+            print(f"📋 DEBUG: Complete LLM Summary Details:")
+            print(f"   - Patient Info: {llm_summary.get('patient_info', 'N/A')}")
+            print(f"   - Main Complaint: {llm_summary.get('main_complaint', 'N/A')}")
+            print(f"   - Symptom Onset: {llm_summary.get('symptom_onset', 'N/A')}")
+            print(f"   - Relevant History: {llm_summary.get('relevant_history', [])}")
+            print(f"   - Allergies: {llm_summary.get('allergies', [])}")
+            print(f"   - Red Flags: {llm_summary.get('red_flags', [])}")
+    except Exception as e:
+        print(f"🔍 DEBUG: LLM Summary error: {e}")
         llm_summary = None
 
     result = {
@@ -129,7 +151,6 @@ def generate_summary(db: Session, session_id: str):
         "patient_info_struct": patient_info_struct,
         "main_complaint": first_text("reason"),
         "symptom_onset": first_text("onset"),
-        "severity": "unknown",
         "relevant_history": relevant_history,
         "allergies": allergies,
         "red_flags": red_flags,
@@ -137,13 +158,24 @@ def generate_summary(db: Session, session_id: str):
         "sessionId": session_id,
     }
     if llm_summary:
+        print(f"🔍 DEBUG: Updating result with LLM summary fields")
         result.update({k: v for k, v in llm_summary.items() if v is not None})
+        print(f"📊 DEBUG: Final result after LLM processing:")
+        print(f"   - Patient Info: {result.get('patient_info', 'N/A')}")
+        print(f"   - Main Complaint: {result.get('main_complaint', 'N/A')}")
+        print(f"   - Symptom Onset: {result.get('symptom_onset', 'N/A')}")
+        print(f"   - Relevant History: {result.get('relevant_history', [])}")
+        print(f"   - Allergies: {result.get('allergies', [])}")
+        print(f"   - Red Flags: {result.get('red_flags', [])}")
     
     # Build complete transcript from all confirmed steps
     complete_transcript = []
     for step in sorted(steps, key=lambda x: x.created_at):
         if step.confirmed:
             complete_transcript.append(f"[{step.step}] {step.text}")
+    
+    print(f"🔍 DEBUG: Complete transcript: {complete_transcript}")
+    print(f"🔍 DEBUG: Final result before saving: {result}")
     
     # Save or update summary in database
     existing_summary = db.query(models.IntakeSummary).filter(models.IntakeSummary.session_id == session_id).first()
@@ -152,6 +184,7 @@ def generate_summary(db: Session, session_id: str):
         existing_summary.complete_transcript = "\n".join(complete_transcript)
         existing_summary.structured_summary = result
         existing_summary.created_at = datetime.utcnow()
+        print(f"🔍 DEBUG: Updated existing summary in database")
     else:
         # Create new summary
         summary_obj = models.IntakeSummary(
@@ -160,6 +193,7 @@ def generate_summary(db: Session, session_id: str):
             structured_summary=result
         )
         db.add(summary_obj)
+        print(f"🔍 DEBUG: Created new summary in database")
     db.commit()
     
     return result

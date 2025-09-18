@@ -4,16 +4,20 @@ import httpx
 
 
 class OllamaSummaryAdapter:
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3.2"):
+    def __init__(self, base_url: str = "http://ollama:11434", model: str = "llama3.2"):
         self.base_url = base_url
         self.model = model
 
     async def summarize(self, steps: List[Dict[str, Any]]) -> Dict[str, Any]:
+        print(f"🤖 DEBUG: Ollama adapter called with {len(steps)} steps")
+        
         # Build context from steps
         context = []
         for step in steps:
             if step.get("confirmed") and step.get("text"):
                 context.append(f"{step['step']}: {step['text']}")
+        
+        print(f"🤖 DEBUG: Context built: {context}")
         
         prompt = f"""Extract structured information from this patient intake conversation:
 
@@ -24,13 +28,15 @@ Return a JSON object with these exact fields:
   "patient_info": "Name: [extracted name]; DOB: [extracted date of birth]; Contact: [extracted phone/contact]",
   "main_complaint": "[primary reason for visit]",
   "symptom_onset": "[when symptoms started]",
-  "severity": "mild|moderate|severe|unknown",
   "relevant_history": ["[any relevant medical history]"],
   "allergies": ["[any allergies mentioned]"],
   "red_flags": ["[urgent symptoms that need immediate attention]"]
 }}
 
 Only return valid JSON, no other text."""
+
+        print(f"🤖 DEBUG: Sending request to Ollama at {self.base_url}/api/generate")
+        print(f"🤖 DEBUG: Using model: {self.model}")
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -47,6 +53,8 @@ Only return valid JSON, no other text."""
                 result = response.json()
                 response_text = result.get("response", "").strip()
                 
+                print(f"🤖 DEBUG: Ollama response: {response_text}")
+                
                 # Extract JSON from response
                 try:
                     # Look for JSON in the response
@@ -54,15 +62,18 @@ Only return valid JSON, no other text."""
                     end = response_text.rfind("}") + 1
                     if start >= 0 and end > start:
                         json_str = response_text[start:end]
-                        return json.loads(json_str)
-                except (json.JSONDecodeError, ValueError):
-                    pass
+                        parsed_json = json.loads(json_str)
+                        print(f"🤖 DEBUG: Parsed JSON from Ollama: {parsed_json}")
+                        return parsed_json
+                except (json.JSONDecodeError, ValueError) as e:
+                    print(f"🤖 DEBUG: JSON parsing failed: {e}")
                 
                 # Fallback to basic extraction
+                print(f"🤖 DEBUG: Using fallback extraction")
                 return self._fallback_extract(steps)
                 
         except Exception as e:
-            print(f"Ollama API error: {e}")
+            print(f"🤖 DEBUG: Ollama API error: {e}")
             return self._fallback_extract(steps)
 
     def _fallback_extract(self, steps: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -77,7 +88,6 @@ Only return valid JSON, no other text."""
             "patient_info": find("identification"),
             "main_complaint": find("reason"),
             "symptom_onset": find("onset"),
-            "severity": "unknown",
             "relevant_history": [find("history")] if find("history") else [],
             "allergies": [find("allergies")] if find("allergies") else [],
             "red_flags": [],

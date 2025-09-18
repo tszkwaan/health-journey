@@ -18,9 +18,7 @@ export default function Navbar() {
 
         {/* Center nav */}
         <div className="hidden md:flex items-center gap-6 text-sm text-gray-700">
-          <Link href="#" className="hover:text-black">About</Link>
-          <Link href="#" className="hover:text-black">Services</Link>
-          <Link href="#" className="hover:text-black">Contact</Link>
+          <Link href="/intake" className="hover:text-black">Intake</Link>
         </div>
 
         {/* Actions */}
