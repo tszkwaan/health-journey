@@ -22,7 +22,8 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto max-w-md p-6">
-      <h1 className="text-2xl font-semibold mb-4">Login</h1>
+      <h1 className="text-2xl font-semibold mb-2">Login</h1>
+      <p className="text-sm text-gray-600 mb-4">Patients and doctors use the same login.</p>
       <form onSubmit={onSubmit} className="space-y-4">
         <input className="w-full border p-2 rounded" placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} />
         <input className="w-full border p-2 rounded" placeholder="Password" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} />
