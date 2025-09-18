@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@langchain/core": "^0.3.77",
+    "@langchain/langgraph": "^0.4.9",
+    "@langchain/openai": "^0.6.13",
     "@prisma/client": "^6.16.2",
     "bcrypt": "^6.0.0",
     "next": "15.5.3",
@@ -16,6 +19,7 @@
     "prisma": "^6.16.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "uuid": "^13.0.0",
     "zod": "^4.1.9",
     "zustand": "^5.0.8"
   },
