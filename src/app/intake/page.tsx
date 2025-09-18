@@ -12,11 +12,15 @@ export default function IntakePage() {
   const [combined, setCombined] = useState<string>("");
   const clientRef = useRef<STTWebSocketClient | null>(null);
   const recogRef = useRef<SpeechRecognition | null>(null);
+  const finalsRef = useRef<string[]>([]);
+  const lastPartialRef = useRef<string>("");
+  const lastFinalRef = useRef<string>("");
 
   const stepKey = orderedSteps[currentIndex];
-  const prompt = prompts[lang][stepKey as keyof typeof prompts['en']];
+  const prompt = prompts['en'][stepKey as keyof typeof prompts['en']];
   const progress = Math.round(((currentIndex + 1) / orderedSteps.length) * 100);
   const isGreeting = currentIndex === 0;
+  const isLast = currentIndex === orderedSteps.length - 1;
 
   useEffect(() => {
     async function bootstrap() {
@@ -32,20 +36,8 @@ export default function IntakePage() {
     if (!sessionId) return;
     const url = `ws://localhost:8000/api/voice/ws/stt?sessionId=${sessionId}`;
     const c = new STTWebSocketClient(url);
-    c.connect((e: STTEvent) => {
-      if (e.type === 'partial_transcript') {
-        setLive(e.text);
-        setCombined([...(finals), e.text].join(' ').trim());
-      }
-      if (e.type === 'final_transcript') {
-        setFinals((prev) => {
-          const next = [...prev, e.text];
-          setCombined(next.join(' ').trim());
-          return next;
-        });
-        setLive("");
-      }
-    });
+    // We stream to backend but do not mirror server events into UI to avoid double-appends
+    c.connect(() => {});
     clientRef.current = c;
 
     const SpeechRecognitionImpl: typeof window.SpeechRecognition | undefined =
@@ -59,26 +51,28 @@ export default function IntakePage() {
     rec.interimResults = true;
     rec.lang = lang === 'en' ? 'en-US' : 'zh-HK';
     rec.onresult = (ev: SpeechRecognitionEvent) => {
-      let interim = '';
-      let finalChunk = '';
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        const res = ev.results[i];
-        if (res.isFinal) finalChunk += res[0].transcript;
-        else interim += res[0].transcript;
-      }
-      if (interim) {
-        setLive(interim);
-        setCombined([...(finals), interim].join(' ').trim());
-        clientRef.current?.sendPartial(interim);
-      }
-      if (finalChunk) {
-        setFinals((prev) => {
-          const next = [...prev, finalChunk];
-          setCombined(next.join(' ').trim());
-          return next;
-        });
-        clientRef.current?.sendFinal(finalChunk);
-        setLive("");
+      const res = ev.results[ev.resultIndex];
+      const transcript = res[0].transcript;
+      if (!res.isFinal) {
+        if (transcript !== lastPartialRef.current) {
+          lastPartialRef.current = transcript;
+          setLive(transcript);
+          setCombined((prev) => (finalsRef.current.join(' ') + ' ' + transcript).trim());
+          clientRef.current?.sendPartial(transcript);
+        }
+      } else {
+        if (transcript !== lastFinalRef.current) {
+          lastFinalRef.current = transcript;
+          setFinals((prev) => {
+            const next = [...prev, transcript];
+            finalsRef.current = next;
+            setCombined(next.join(' ').trim());
+            return next;
+          });
+          clientRef.current?.sendFinal(transcript);
+          setLive("");
+          lastPartialRef.current = "";
+        }
       }
     };
     rec.onerror = (e) => {
@@ -150,7 +144,27 @@ export default function IntakePage() {
               </div>
             )}
             <div className="ml-auto">
-              <button onClick={confirm} className="px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">Next</button>
+              <button onClick={async()=>{
+                await confirm();
+                if (isLast) {
+                  // Finalize: ask backend to generate summary and fetch full intake for doctor reference
+                  if (!sessionId) return;
+                  try {
+                    const [summaryRes, intakeRes] = await Promise.all([
+                      fetch(`http://localhost:8000/api/intake/${sessionId}/summary`, { method: 'POST' }),
+                      fetch(`http://localhost:8000/api/intake/${sessionId}`),
+                    ]);
+                    const summary = await summaryRes.json();
+                    const intake = await intakeRes.json();
+                    console.log('Final Summary', summary);
+                    console.log('Complete Intake Record', intake);
+                    alert('Submitted. Summary generated for doctor review.');
+                  } catch (e) {
+                    console.error(e);
+                    alert('Submitted, but failed to fetch summary.');
+                  }
+                }
+              }} className="px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">{isLast ? 'Submit' : 'Next'}</button>
             </div>
           </div>
         </div>

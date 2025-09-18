@@ -18,7 +18,7 @@ type IntakeState = {
   reset: () => void
 }
 
-export const orderedSteps: StepKey[] = ['greeting','identification','reason','onset','severity','history','allergies','safety']
+export const orderedSteps: StepKey[] = ['greeting','identification','reason','onset','history','allergies','safety']
 
 export const useIntakeStore = create<IntakeState>((set, get) => ({
   currentIndex: 0,

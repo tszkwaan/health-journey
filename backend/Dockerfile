@@ -14,7 +14,8 @@ RUN pip install --no-cache-dir --upgrade pip \
        fastapi==0.115.* \
        "uvicorn[standard]"==0.30.* \
        sqlalchemy==2.* \
-       "psycopg[binary]"==3.*
+       "psycopg[binary]"==3.* \
+       httpx==0.27.*
 
 # Copy app source
 COPY app /app/app

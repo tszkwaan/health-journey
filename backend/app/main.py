@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Literal
@@ -12,11 +12,20 @@ app = FastAPI(title="Voice AI Pre-Care")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for now
+    allow_credentials=False,  # Set to False when allowing all origins
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add manual CORS handling as backup
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 class CreateSessionOut(BaseModel):
@@ -60,6 +69,13 @@ async def save_step(session_id: str, body: StepIn):
     return {"ok": True}
 
 
+@app.get("/api/intake/summaries")
+async def list_summaries():
+    """List all intake summaries for doctor dashboard"""
+    with db.SessionLocal() as session:
+        return crud.list_all_summaries(session)
+
+
 @app.get("/api/intake/{session_id}")
 async def get_intake(session_id: str):
     with db.SessionLocal() as session:
@@ -70,6 +86,16 @@ async def get_intake(session_id: str):
 async def generate_summary(session_id: str):
     with db.SessionLocal() as session:
         return crud.generate_summary(session, session_id)
+
+
+@app.get("/api/intake/{session_id}/summary")
+async def get_saved_summary(session_id: str):
+    """Get saved summary and transcript for doctor review"""
+    with db.SessionLocal() as session:
+        result = crud.get_saved_summary(session, session_id)
+        if not result:
+            return {"error": "Summary not found"}
+        return result
 
 
 @app.websocket("/api/voice/ws/stt")

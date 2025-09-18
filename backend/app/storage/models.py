@@ -25,4 +25,13 @@ class IntakeStep(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class IntakeSummary(Base):
+    __tablename__ = "intake_summaries"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    complete_transcript: Mapped[str] = mapped_column(Text)  # Full conversation transcript
+    structured_summary: Mapped[dict] = mapped_column(JSON)  # Structured summary JSON
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 
