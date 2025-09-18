@@ -198,7 +198,12 @@ export default function PatientReservationsPage() {
               {reservations.map((reservation) => {
                 const intakeStatus = getIntakeStatus(reservation);
                 return (
-                  <div key={reservation.id} className="flex items-center justify-between p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                  <Link 
+                    key={reservation.id} 
+                    href={`/patient/reservations/${reservation.id}`}
+                    className="block"
+                  >
+                    <div className="flex items-center justify-between p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer">
                     <div className="flex items-center gap-6">
                       {/* Doctor Avatar */}
                       <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-bold text-xl">
@@ -238,7 +243,8 @@ export default function PatientReservationsPage() {
                         intakeStatus === 'In Progress' ? 'bg-blue-500' : 'bg-orange-500'
                       }`}></div>
                     </div>
-                  </div>
+                    </div>
+                  </Link>
                 );
               })}
             </div>

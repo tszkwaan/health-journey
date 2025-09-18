@@ -23,7 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<StartInta
     }
     
     // Create database record for the intake session
-    await prisma.intakeSession.create({
+    const intakeSession = await prisma.intakeSession.create({
       data: {
         sessionId: session.sessionId,
         currentStep: session.current_step,
