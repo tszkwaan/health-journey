@@ -152,9 +152,14 @@ export default function PatientReservationsPage() {
 
   if (loading || status === 'loading') {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-50" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
-        <p className="ml-4 text-gray-700">Loading your reservations...</p>
+      <div className="min-h-screen flex items-center justify-center" style={{
+        background: 'linear-gradient(135deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%)',
+        fontFamily: 'var(--font-noto-sans)'
+      }}>
+        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-gray-700">Loading your reservations...</p>
+        </div>
       </div>
     );
   }
@@ -164,33 +169,29 @@ export default function PatientReservationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center gap-4 mb-2">
+    <div className="min-h-screen" style={{
+      background: 'linear-gradient(135deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%)',
+      fontFamily: 'var(--font-noto-sans)'
+    }}>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+          <div className="flex items-center gap-4 mb-4">
             <Link href="/" className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-green-600 text-white text-sm font-bold">
               🛡️
             </Link>
             <h1 className="text-3xl font-bold text-gray-900">
-              HealthPlus
+              My Reservations
             </h1>
           </div>
           <p className="text-gray-600">
-            View and manage your upcoming appointments.
-          </p>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            My Reservations
-          </h2>
-          <p className="text-gray-600 mb-8">
             View and manage your upcoming appointments and pre-care intake status.
           </p>
+        </div>
+
+        {/* Reservations Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8">
 
           {/* Reservations List */}
           {reservations.length > 0 ? (

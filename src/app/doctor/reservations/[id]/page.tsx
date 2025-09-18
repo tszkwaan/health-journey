@@ -83,8 +83,8 @@ export default function ReservationDetailPage() {
     
     if (reservation.status === 'CANCELLED') return 'Cancelled';
     if (reservation.status === 'COMPLETED') return 'Completed';
-    if (reservation.intakeSession?.progress === 100) return 'Intake Done';
-    if (reservation.intakeSession?.progress > 0) return 'In Progress';
+    if (reservation.intakeSession && reservation.intakeSession.progress === 100) return 'Intake Done';
+    if (reservation.intakeSession && reservation.intakeSession.progress > 0) return 'In Progress';
     return 'Intake Pending';
   };
 
@@ -92,7 +92,7 @@ export default function ReservationDetailPage() {
     switch (status) {
       case 'Intake Done':
       case 'Completed':
-        return 'bg-green-100 text-green-800';
+        return 'bg-purple-100 text-purple-800';
       case 'In Progress':
         return 'bg-blue-100 text-blue-800';
       case 'Intake Pending':
@@ -194,7 +194,7 @@ export default function ReservationDetailPage() {
             </div>
             <div className="flex items-center gap-4">
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(currentStatus)}`}>
-                <div className={`w-2 h-2 rounded-full mr-2 ${currentStatus === 'Intake Done' || currentStatus === 'Completed' ? 'bg-green-500' : currentStatus === 'In Progress' ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
+                <div className={`w-2 h-2 rounded-full mr-2 ${currentStatus === 'Intake Done' || currentStatus === 'Completed' ? 'bg-purple-500' : currentStatus === 'In Progress' ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
                 {currentStatus}
               </span>
             </div>
@@ -221,7 +221,7 @@ export default function ReservationDetailPage() {
                       onClick={() => setActiveTab(tab.id as TabType)}
                       className={`py-4 px-1 border-b-2 font-medium text-sm cursor-pointer ${
                         activeTab === tab.id
-                          ? 'border-green-500 text-green-600'
+                          ? 'border-purple-500 text-purple-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
@@ -389,12 +389,12 @@ export default function ReservationDetailPage() {
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
                   placeholder="Type your question here..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                   rows={3}
                 />
                 <button
                   type="submit"
-                  className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+                  className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium"
                 >
                   Ask
                 </button>

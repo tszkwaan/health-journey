@@ -156,8 +156,11 @@ export default function NewAppointmentPage() {
   // Show loading while checking authentication
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center" style={{
+        background: 'linear-gradient(135deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%)',
+        fontFamily: 'var(--font-noto-sans)'
+      }}>
+        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-600" style={{ fontFamily: 'var(--font-noto-sans)' }}>Loading...</p>
         </div>
@@ -168,8 +171,11 @@ export default function NewAppointmentPage() {
   // Don't render if not authenticated
   if (status === 'unauthenticated') {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center" style={{
+        background: 'linear-gradient(135deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%)',
+        fontFamily: 'var(--font-noto-sans)'
+      }}>
+        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'var(--font-noto-sans)' }}>
             Authentication Required
           </h2>
@@ -190,8 +196,11 @@ export default function NewAppointmentPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center" style={{
+        background: 'linear-gradient(135deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%)',
+        fontFamily: 'var(--font-noto-sans)'
+      }}>
+        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-600" style={{ fontFamily: 'var(--font-noto-sans)' }}>Loading doctors and available slots...</p>
         </div>
@@ -200,7 +209,10 @@ export default function NewAppointmentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{
+      background: 'linear-gradient(135deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%)',
+      fontFamily: 'var(--font-noto-sans)'
+    }}>
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">

@@ -129,8 +129,11 @@ export default function DoctorAppointmentsPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center" style={{
+        background: 'linear-gradient(135deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%)',
+        fontFamily: 'var(--font-noto-sans)'
+      }}>
+        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-600" style={{ fontFamily: 'var(--font-noto-sans)' }}>
             Loading appointments...
@@ -145,33 +148,29 @@ export default function DoctorAppointmentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center gap-4 mb-2">
+    <div className="min-h-screen" style={{
+      background: 'linear-gradient(135deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%)',
+      fontFamily: 'var(--font-noto-sans)'
+    }}>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+          <div className="flex items-center gap-4 mb-4">
             <Link href="/" className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-green-600 text-white text-sm font-bold">
               🛡️
             </Link>
             <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-              HealthPlus
+              My Appointments
             </h1>
           </div>
           <p className="text-gray-600" style={{ fontFamily: 'var(--font-noto-sans)' }}>
             Manage your upcoming appointments and pre-care intake status.
           </p>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-            Upcoming Appointments
-          </h2>
-          <p className="text-gray-600 mb-8" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-            Manage your upcoming appointments and pre-care intake status.
-          </p>
+        {/* Appointments Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8">
 
           {/* Today's Appointments */}
           {appointments?.today && appointments.today.length > 0 && (
