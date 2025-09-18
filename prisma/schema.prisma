@@ -13,6 +13,13 @@ enum Role {
   DOCTOR
 }
 
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
 model User {
   id           String   @id @default(cuid())
   createdAt    DateTime @default(now())
@@ -22,4 +29,87 @@ model User {
   email        String   @unique
   passwordHash String
   role         Role
+
+  // Relations
+  reservations Reservation[]
+  doctorProfile Doctor?
+}
+
+model Doctor {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Basic info
+  name        String
+  email       String   @unique
+  specialization String?
+  bio         String?
+  phone       String?
+  
+  // Working hours (9 AM to 6 PM by default)
+  startTime   String   @default("09:00") // HH:MM format
+  endTime     String   @default("18:00") // HH:MM format
+  slotDuration Int     @default(60) // minutes
+  
+  // Relations
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+  timeSlots   TimeSlot[]
+}
+
+model TimeSlot {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Slot timing
+  date        DateTime // Date of the slot
+  startTime   String   // HH:MM format
+  endTime     String   // HH:MM format
+  
+  // Availability
+  isAvailable Boolean  @default(true)
+  
+  // Relations
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  reservation Reservation?
+}
+
+model Reservation {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Reservation details
+  status      ReservationStatus @default(PENDING)
+  notes       String?
+  
+  // Relations
+  patientId   String
+  patient     User     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  timeSlotId  String   @unique
+  timeSlot    TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+  intakeSessionId String? @unique
+  intakeSession IntakeSession? @relation(fields: [intakeSessionId], references: [id])
+}
+
+model IntakeSession {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Session data
+  sessionId   String   @unique // The UUID used in the frontend
+  currentStep String
+  answers     Json     // Store the intake answers as JSON
+  flags       Json     // Store flags like editMode, skipped fields
+  progress    Int      // 0-100
+  
+  // Relations
+  reservation Reservation?
 }

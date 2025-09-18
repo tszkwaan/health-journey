@@ -25,12 +25,15 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        token.id = user.id
         // @ts-expect-error custom role on token
         token.role = (user as any).role
       }
       return token
     },
     async session({ session, token }) {
+      // @ts-expect-error custom id on session
+      session.user.id = token.id
       // @ts-expect-error custom role on session
       session.user.role = token.role
       return session

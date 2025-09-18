@@ -1,9 +1,13 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { IntakeStep, StartIntakeResponse, MessageIntakeResponse } from "@/lib/intake/types";
 import { STTWebSocketClient, STTEvent } from "@/lib/voice/wsClient";
 
 export default function IntakePage() {
+  const searchParams = useSearchParams();
+  const reservationId = searchParams.get('reservationId');
+  
   const [sessionId, setSessionId] = useState<string>("");
   const [currentStep, setCurrentStep] = useState<IntakeStep>("patient_info");
   const [progress, setProgress] = useState<number>(0);
@@ -34,7 +38,8 @@ export default function IntakePage() {
         setIsLoading(true);
         const response = await fetch('/api/intake/start', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reservationId })
         });
         
         if (!response.ok) {
