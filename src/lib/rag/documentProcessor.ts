@@ -181,8 +181,10 @@ export class DocumentProcessor {
     };
   }
 
-  private cleanText(text: string): string {
-    return text
+  private cleanText(text: any): string {
+    // Convert to string if it's not already
+    const textStr = typeof text === 'string' ? text : String(text || '');
+    return textStr
       .replace(/\s+/g, ' ')
       .replace(/[^\w\s.,!?;:()-]/g, '')
       .trim();

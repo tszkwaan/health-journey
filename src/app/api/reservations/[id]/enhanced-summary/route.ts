@@ -351,16 +351,9 @@ function prepareSourceData(medicalBackground: any, intakeAnswers: any, patient: 
 
 async function getExternalMedicalResearch(visitReason: string) {
   try {
-    // Use the existing RAG service to get external medical research
-    const ragService = await import('../../../../lib/rag/ragService');
-    const researchResults = await ragService.searchExternalSources(visitReason, true);
-    
-    return researchResults.map((result, index) => ({
-      id: `external_${index + 1}`,
-      title: result.title || 'Medical Research',
-      content: result.content,
-      source: result.source || 'External Medical Database'
-    }));
+    // Temporarily disable external research to avoid import issues
+    console.log('External medical research disabled for now');
+    return [];
   } catch (error) {
     console.error('Error getting external medical research:', error);
     return [];
