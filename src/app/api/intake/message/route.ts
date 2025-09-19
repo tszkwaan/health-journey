@@ -62,31 +62,31 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
       const intakeSession = await prisma.intakeSession.upsert({
         where: { sessionId: sessionId },
         update: {
-          currentStep: updatedSession.current_step,
+          currentStep: result.current_step, // Use the current_step from the result, not the session
           answers: updatedSession.answers,
           flags: updatedSession.flags as any,
-          progress: updatedSession.progress,
+          progress: result.progress, // Use the progress from the result
           // Preserve existing reservationId if it exists
           reservationId: existingSession?.reservationId || null
         },
         create: {
           sessionId: sessionId,
-          currentStep: updatedSession.current_step,
+          currentStep: result.current_step, // Use the current_step from the result
           answers: updatedSession.answers,
           flags: updatedSession.flags as any,
-          progress: updatedSession.progress,
+          progress: result.progress, // Use the progress from the result
           reservationId: null // Will be set when starting intake with reservationId
         }
       });
 
       // If the intake is completed (progress = 100), link it to the reservation
       console.log('🔍 MESSAGE API: Checking completion:', {
-        progress: updatedSession.progress,
+        progress: result.progress,
         reservationId: intakeSession.reservationId,
         intakeSessionId: intakeSession.id
       });
       
-      if (updatedSession.progress === 100 && intakeSession.reservationId) {
+      if (result.progress === 100 && intakeSession.reservationId) {
         console.log('🔍 MESSAGE API: Linking completed intake to reservation:', intakeSession.reservationId);
         await prisma.reservation.update({
           where: { id: intakeSession.reservationId },
