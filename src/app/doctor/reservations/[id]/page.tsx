@@ -86,14 +86,24 @@ export default function ReservationDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [chatMessage, setChatMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string, sources?: any[], confidence?: number}>>([]);
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [includeExternal, setIncludeExternal] = useState(false);
+  const [chatContainerRef, setChatContainerRef] = useState<HTMLDivElement | null>(null);
 
   // Set client-side flag to prevent hydration issues
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (chatContainerRef) {
+      chatContainerRef.scrollTop = chatContainerRef.scrollHeight;
+    }
+  }, [chatHistory, chatContainerRef]);
 
   // Redirect if not authenticated or not a doctor
   useEffect(() => {
@@ -173,21 +183,50 @@ export default function ReservationDetailPage() {
 
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatMessage.trim()) return;
+    if (!chatMessage.trim() || isLoadingChat) return;
 
     const userMessage = chatMessage;
     setChatMessage('');
+    setIsLoadingChat(true);
     
     // Add user message to chat history
     setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
 
-    // Simulate AI response (replace with actual API call)
-    setTimeout(() => {
+    try {
+      // Call the RAG API
+      const response = await fetch(`/api/reservations/${reservationId}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          includeExternal: includeExternal
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response');
+      }
+
+      const data = await response.json();
+      
+      // Add AI response to chat history
       setChatHistory(prev => [...prev, { 
         role: 'assistant', 
-        content: `I understand you're asking about "${userMessage}". Based on the patient's intake information, I can help you with that. This is a placeholder response - in a real implementation, this would connect to a RAG system with the patient's data.`
+        content: data.response,
+        sources: data.sources,
+        confidence: data.confidence
       }]);
-    }, 1000);
+    } catch (error) {
+      console.error('Error getting chat response:', error);
+      setChatHistory(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error processing your request. Please try again.'
+      }]);
+    } finally {
+      setIsLoadingChat(false);
+    }
   };
 
   const generateEnhancedSummary = async () => {
@@ -354,8 +393,8 @@ export default function ReservationDetailPage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="w-[80%] mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           {/* Left Column - Reservation Details */}
           <div className="lg:col-span-2">
             {/* Tabs */}
@@ -802,47 +841,102 @@ export default function ReservationDetailPage() {
           </div>
 
           {/* Right Column - Q&A Chatbot */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Q&A Chatbot</h3>
-              <p className="text-sm text-gray-600 mb-4">Ask questions about the patient from RAG.</p>
+          <div className="lg:col-span-3">
+            <div className="bg-white rounded-2xl shadow-lg border border-purple-100 p-8 h-[80vh] flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-gray-900" style={{ fontFamily: 'var(--font-noto-sans)' }}>Q&A Chatbot</h3>
+                <div className="flex items-center space-x-2">
+                  <label className="flex items-center text-sm text-gray-600" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                    <input
+                      type="checkbox"
+                      checked={includeExternal}
+                      onChange={(e) => setIncludeExternal(e.target.checked)}
+                      className="mr-2 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    Include PubMed
+                  </label>
+                </div>
+              </div>
+              <p className="text-base text-gray-600 mb-6" style={{ fontFamily: 'var(--font-noto-sans)' }}>Ask questions about the patient. Toggle PubMed to include medical literature search.</p>
               
               {/* Chat History */}
-              <div className="h-64 overflow-y-auto mb-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
+              <div 
+                ref={setChatContainerRef}
+                className="flex-1 overflow-y-auto mb-6 border-2 border-purple-200 rounded-2xl p-6 bg-gray-50"
+              >
                 {chatHistory.length === 0 ? (
-                  <p className="text-gray-500 text-sm">Start a conversation by asking a question about the patient.</p>
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500 text-2xl" style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}>
+                      Start a conversation by asking a question about the patient.
+                    </p>
+                  </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {chatHistory.map((message, index) => (
                       <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
+                        <div className={`max-w-md px-4 py-3 rounded-2xl text-base ${
                           message.role === 'user' 
-                            ? 'bg-blue-600 text-white' 
-                            : 'bg-white text-gray-900 border border-gray-200'
-                        }`}>
-                          {message.content}
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' 
+                            : 'bg-white text-gray-900 border-2 border-purple-200'
+                        }`} style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}>
+                          <div className="leading-relaxed">{message.content}</div>
+                          {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                            <div className="mt-3 text-sm text-gray-500">
+                              <div className="font-medium mb-2">Sources:</div>
+                              {message.sources.slice(0, 3).map((source, idx) => (
+                                <div key={idx} className="truncate">
+                                  • {source.section} ({source.source})
+                                </div>
+                              ))}
+                              {message.sources.length > 3 && (
+                                <div className="text-gray-400">+{message.sources.length - 3} more</div>
+                              )}
+                            </div>
+                          )}
+                          {message.role === 'assistant' && message.confidence && (
+                            <div className="mt-2 text-sm text-gray-400">
+                              Confidence: {Math.round(message.confidence * 100)}%
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
+                    {/* Loading indicator */}
+                    {isLoadingChat && (
+                      <div className="flex justify-start">
+                        <div className="max-w-md px-4 py-3 rounded-2xl text-base bg-white text-gray-900 border-2 border-purple-200">
+                          <div className="flex items-center space-x-3">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                            <span style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}>Thinking...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
               {/* Chat Input */}
-              <form onSubmit={handleChatSubmit} className="space-y-3">
-                <textarea
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  placeholder="Type your question here..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  rows={3}
-                />
-                <button
-                  type="submit"
-                  className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium"
-                >
-                  Ask
-                </button>
+              <form onSubmit={handleChatSubmit} className="space-y-4">
+                <div className="flex gap-4">
+                  <textarea
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    placeholder="Type your question here..."
+                    className="flex-1 rounded-2xl border-2 border-purple-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 p-4 text-lg placeholder-gray-400 transition-all duration-200 resize-none"
+                    style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}
+                    rows={3}
+                    disabled={isLoadingChat}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!chatMessage.trim() || isLoadingChat}
+                    className="px-8 py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed self-end"
+                    style={{ fontFamily: 'var(--font-noto-sans)' }}
+                  >
+                    {isLoadingChat ? 'Thinking...' : 'Ask'}
+                  </button>
+                </div>
               </form>
             </div>
           </div>
