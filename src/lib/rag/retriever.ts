@@ -56,7 +56,7 @@ export class RAGRetriever {
     // Sort by score and return top results
     const topChunks = uniqueMatches
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5) // Return top 5 most relevant chunks
+      .slice(0, 8) // Return top 8 most relevant chunks to ensure family history is included
       .map(item => item.chunk);
 
     console.log(`✅ Returning ${topChunks.length} top chunks:`);
@@ -242,11 +242,16 @@ export class RAGRetriever {
       if (chunk.metadata.section === 'family_history') {
         // High score for family history queries
         if (queryLower.includes('family') && queryLower.includes('history')) {
-          score += 1.0; // Very high score for "family history"
+          score += 2.0; // Very high score for "family history"
         } else if (queryLower.includes('family') && queryLower.includes('health')) {
-          score += 0.9; // High score for "family health"
+          score += 1.8; // High score for "family health"
         } else if (queryLower.includes('family') || queryLower.includes('health') || queryLower.includes('history')) {
-          score += 0.8; // Good score for any of these terms
+          score += 1.5; // Good score for any of these terms
+        }
+        
+        // Additional boost for exact phrase matches
+        if (queryLower === 'family history' || queryLower === 'family health history') {
+          score += 3.0; // Maximum boost for exact phrase
         }
       }
       
