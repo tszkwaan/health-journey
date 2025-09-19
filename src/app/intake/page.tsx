@@ -246,25 +246,22 @@ export default function IntakePage() {
       console.warn('Error stopping voice input', e);
     }
     setIsListening(false);
-  };
-
-  // Send voice transcript as message
-  const sendVoiceTranscript = async () => {
-    if (!combinedTranscript.trim()) return;
     
-    setUserInput(combinedTranscript);
-    
-    // Clear voice state
+    // Clear voice transcript when stopping
     setLiveTranscript("");
     setFinalTranscripts([]);
     setCombinedTranscript("");
     lastPartialRef.current = "";
     lastFinalRef.current = "";
     finalsRef.current = [];
-    
-    // Send the message
-    await sendMessage();
   };
+
+  // Update user input when voice transcript changes
+  useEffect(() => {
+    if (combinedTranscript) {
+      setUserInput(combinedTranscript);
+    }
+  }, [combinedTranscript]);
 
   // Get step display name
   const getStepDisplayName = (step: IntakeStep): string => {
@@ -339,27 +336,6 @@ export default function IntakePage() {
             </div>
           )}
 
-            {/* Voice transcript display - hide when complete */}
-            {!isCompleteStep && combinedTranscript && (
-              <div className="mb-4 p-4 bg-blue-50 rounded-2xl border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium text-blue-700" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                    Voice Input
-                  </span>
-                </div>
-                <div 
-                  className="text-gray-800 text-lg"
-                  style={{ fontFamily: 'var(--font-noto-sans)' }}
-                >
-                  {combinedTranscript}
-                </div>
-              </div>
-            )}
 
             {/* User input form */}
             {!isCompleteStep && (
@@ -401,17 +377,6 @@ export default function IntakePage() {
                     </svg>
                     {isListening ? 'Stop Recording' : 'Start Voice Input'}
                   </button>
-                  
-                  {combinedTranscript && (
-                    <button
-                      onClick={sendVoiceTranscript}
-                      disabled={isLoading || !combinedTranscript.trim()}
-                      className="px-6 py-3 rounded-full bg-gradient-to-r from-green-600 to-blue-600 text-white text-sm font-semibold hover:from-green-700 hover:to-blue-700 transition-all duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ fontFamily: 'var(--font-noto-sans)' }}
-                    >
-                      Send Voice Input
-                    </button>
-                  )}
                 </div>
               </div>
             )}
