@@ -305,12 +305,28 @@ export default function NewAppointmentPage() {
                                     Book
                                   </button>
                                 ) : (
-                                  <span className="px-4 py-2 bg-gray-300 text-gray-600 text-sm font-medium rounded-lg" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                                  <span 
+                                    className="py-2 px-6 text-sm font-normal rounded-lg w-full"
+                                    style={{ 
+                                      fontFamily: 'var(--font-noto-sans)',
+                                      backgroundColor: '#F3F4F6',
+                                      color: '#6B7280',
+                                      minWidth: '80px'
+                                    }}
+                                  >
                                     Occupied
                                   </span>
                                 )
                               ) : (
-                                <span className="px-4 py-2 bg-gray-300 text-gray-600 text-sm font-medium rounded-lg" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                                <span 
+                                  className="py-2 px-6 text-sm font-normal rounded-lg w-full"
+                                  style={{ 
+                                    fontFamily: 'var(--font-noto-sans)',
+                                    backgroundColor: '#F3F4F6',
+                                    color: '#6B7280',
+                                    minWidth: '80px'
+                                  }}
+                                >
                                   Unavailable
                                 </span>
                               )}
