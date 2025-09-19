@@ -22,6 +22,25 @@ export function getSession(sessionId: string): IntakeState | null {
   return sessionStore.get(sessionId) || null;
 }
 
+// Restore session from database data
+export function restoreSession(sessionId: string, dbData: {
+  currentStep: string;
+  answers: any;
+  flags: any;
+  progress: number;
+}): IntakeState {
+  const state: IntakeState = {
+    sessionId,
+    current_step: dbData.currentStep as IntakeStep,
+    answers: dbData.answers,
+    flags: dbData.flags,
+    progress: dbData.progress
+  };
+  
+  sessionStore.set(sessionId, state);
+  return state;
+}
+
 // Update answer for a specific step
 export function updateAnswer(sessionId: string, step: IntakeStep, answer: any): IntakeState | null {
   const session = sessionStore.get(sessionId);
@@ -65,20 +84,34 @@ export function skipField(sessionId: string, step: IntakeStep): IntakeState | nu
 // Move to next step
 export function moveToNextStep(sessionId: string): IntakeState | null {
   const session = sessionStore.get(sessionId);
-  if (!session) return null;
+  if (!session) {
+    console.log('🔍 MOVE_TO_NEXT: No session found for:', sessionId);
+    return null;
+  }
 
   const currentIndex = INTAKE_STEPS.indexOf(session.current_step);
+  console.log('🔍 MOVE_TO_NEXT: Current step:', session.current_step, 'index:', currentIndex);
+  console.log('🔍 MOVE_TO_NEXT: Available steps:', INTAKE_STEPS);
+  
   if (currentIndex === -1 || currentIndex >= INTAKE_STEPS.length - 1) {
+    console.log('🔍 MOVE_TO_NEXT: Already at last step or invalid step');
     return session; // Already at last step
   }
 
   const nextStep = INTAKE_STEPS[currentIndex + 1];
+  console.log('🔍 MOVE_TO_NEXT: Moving to next step:', nextStep);
+  
   const updatedSession = {
     ...session,
     current_step: nextStep
   };
 
   sessionStore.set(sessionId, updatedSession);
+  console.log('🔍 MOVE_TO_NEXT: Updated session stored:', {
+    current_step: updatedSession.current_step,
+    progress: updatedSession.progress
+  });
+  
   return updatedSession;
 }
 

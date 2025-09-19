@@ -127,11 +127,9 @@ export function detectSpecialIntent(input: string): SpecialIntent {
   }
   
   // Medical conditions detection
-  if ((hasChangeWord && (text.includes('condition') || text.includes('medical') || text.includes('health') || text.includes('diabetes') || text.includes('hypertension'))) ||
+  if ((hasChangeWord && (text.includes('condition') || text.includes('medical') || text.includes('health'))) ||
       text.includes('medical condition') ||
-      text.includes('ongoing condition') ||
-      text.includes('diabetes') ||
-      text.includes('hypertension')) {
+      text.includes('ongoing condition')) {
     
     // Check if it's a direct update
     if (text.includes('condition') && (text.includes('add') || text.includes('is') || text.includes('set') || text.includes('=')) && 

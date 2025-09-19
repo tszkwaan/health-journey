@@ -288,7 +288,7 @@ export default function IntakePage() {
       background: 'linear-gradient(180deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%)'
     }}>
       <div className="mx-auto max-w-4xl px-4 py-16">
-        <div className="rounded-3xl bg-white shadow-2xl border border-purple-100 p-8 md:p-10 h-[500px] flex flex-col">
+        <div className="rounded-3xl bg-white shadow-2xl border border-purple-100 p-8 md:p-10 min-h-[600px] flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between text-sm text-gray-600 mb-3" style={{ fontFamily: 'var(--font-noto-sans)' }}>
             <div className="font-medium">Pre‑Care Intake</div>

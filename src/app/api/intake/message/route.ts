@@ -33,13 +33,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
       
       if (dbSession) {
         console.log('🔍 MESSAGE API: Found session in database, restoring to memory...');
-        // Restore session to memory
-        const { createSession } = await import('@/lib/intake/state');
-        session = createSession(sessionId);
-        session.current_step = dbSession.currentStep as any;
-        session.answers = dbSession.answers as any;
-        session.flags = dbSession.flags as any;
-        session.progress = dbSession.progress;
+        // Restore session to memory using the new restoreSession function
+        const { restoreSession } = await import('@/lib/intake/state');
+        session = restoreSession(sessionId, {
+          currentStep: dbSession.currentStep,
+          answers: dbSession.answers,
+          flags: dbSession.flags,
+          progress: dbSession.progress
+        });
+        
         console.log('🔍 MESSAGE API: Restored session:', {
           current_step: session.current_step,
           progress: session.progress,
