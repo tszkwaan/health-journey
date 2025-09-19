@@ -51,8 +51,23 @@ export class RAGService {
       // Get patient context from existing chunks
       const patientContext = this.extractPatientContext(reservationId);
       
+      // Debug: Log all available chunks for this reservation
+      const allChunks = this.reservationChunks.get(reservationId) || [];
+      console.log(`Available chunks for reservation ${reservationId}:`, allChunks.map(chunk => ({
+        id: chunk.id,
+        source: chunk.metadata.source,
+        section: chunk.metadata.section,
+        content: chunk.content.substring(0, 100) + '...'
+      })));
+      
       // Retrieve relevant context from internal sources
       const internalContext = await this.retriever.retrieveRelevantContext(query, reservationId, patientContext);
+      
+      // Debug: Log retrieved context
+      console.log(`Retrieved ${internalContext.length} chunks for query: "${query}"`);
+      internalContext.forEach((chunk, index) => {
+        console.log(`Retrieved chunk ${index + 1}: ${chunk.metadata.source} - ${chunk.metadata.section} - ${chunk.content.substring(0, 100)}...`);
+      });
       
       let allContext = [...internalContext];
       

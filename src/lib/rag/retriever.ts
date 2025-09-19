@@ -150,6 +150,9 @@ export class RAGRetriever {
       'family': ['family_history', 'family', 'genetic', 'hereditary', 'parental', 'maternal', 'paternal'],
       'history': ['family_history', 'past_medical_conditions', 'medical_history', 'history'],
       'background': ['family_history', 'past_medical_conditions', 'medical_history'],
+      'health': ['family_history', 'past_medical_conditions', 'medical_history', 'health'],
+      'wts': ['family_history', 'past_medical_conditions', 'medical_history'], // Handle "wts" as "what's"
+      'her': ['family_history', 'past_medical_conditions', 'medical_history'], // Handle "her" as context
       'medication': ['medications', 'medication', 'drug', 'prescription'],
       'allergy': ['allergies', 'allergy', 'reaction'],
       'condition': ['past_medical_conditions', 'medical_conditions', 'condition'],
@@ -157,8 +160,15 @@ export class RAGRetriever {
       'lifestyle': ['lifestyle', 'smoking', 'alcohol', 'exercise', 'occupation']
     };
     
-    // Extract keywords from query
-    const queryWords = queryLower.split(/\s+/).filter(word => word.length > 2);
+    // Extract keywords from query and handle common abbreviations
+    let processedQuery = queryLower;
+    
+    // Handle common abbreviations
+    processedQuery = processedQuery.replace(/\bwts\b/g, 'what is');
+    processedQuery = processedQuery.replace(/\bwhats\b/g, 'what is');
+    processedQuery = processedQuery.replace(/\bwhat's\b/g, 'what is');
+    
+    const queryWords = processedQuery.split(/\s+/).filter(word => word.length > 2);
     
     chunks.forEach(chunk => {
       let score = 0;
@@ -169,6 +179,13 @@ export class RAGRetriever {
           score += 0.3;
         }
       });
+      
+      // Check for exact phrase matches
+      if (chunk.metadata.section === 'family_history') {
+        if (queryLower.includes('family health history') || queryLower.includes('family health background')) {
+          score += 1.2; // Very high score for exact phrase match
+        }
+      }
       
       // Check for section-based matches
       queryWords.forEach(word => {
@@ -185,11 +202,29 @@ export class RAGRetriever {
       if (queryWords.includes('family') && chunk.metadata.section === 'family_history') {
         score += 0.7;
       }
+      if (queryWords.includes('health') && chunk.metadata.section === 'family_history') {
+        score += 0.6;
+      }
+      if (queryWords.includes('history') && chunk.metadata.section === 'family_history') {
+        score += 0.6;
+      }
       if (queryWords.includes('medical') && chunk.metadata.source === 'medical_history') {
         score += 0.6;
       }
       if (queryWords.includes('intake') && chunk.metadata.source === 'intake') {
         score += 0.5;
+      }
+      
+      // Special handling for family history queries
+      if (chunk.metadata.section === 'family_history') {
+        // High score for family history queries
+        if (queryLower.includes('family') && queryLower.includes('history')) {
+          score += 1.0; // Very high score for "family history"
+        } else if (queryLower.includes('family') && queryLower.includes('health')) {
+          score += 0.9; // High score for "family health"
+        } else if (queryLower.includes('family') || queryLower.includes('health') || queryLower.includes('history')) {
+          score += 0.8; // Good score for any of these terms
+        }
       }
       
       if (score > 0) {
