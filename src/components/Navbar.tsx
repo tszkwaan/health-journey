@@ -40,9 +40,13 @@ export default function Navbar() {
         {/* Center nav */}
         <div className="flex items-center gap-8 text-base font-medium text-black" style={{ fontFamily: 'var(--font-noto-sans)' }}>
           <Link href="/" className="hover:text-purple-600 transition-colors duration-200 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50">Home</Link>
-          <Link href="/services" className="hover:text-purple-600 transition-colors duration-200 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50">Services</Link>
-          <Link href="/doctors" className="hover:text-purple-600 transition-colors duration-200 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50">Doctors</Link>
-          <Link href="/contact" className="hover:text-purple-600 transition-colors duration-200 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50">Contact</Link>
+          {role === 'PATIENT' && (
+            <Link href="/patient/reservations" className="hover:text-purple-600 transition-colors duration-200 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50">My Reservations</Link>
+          )}
+          {role === 'DOCTOR' && (
+            <Link href="/doctor/appointments" className="hover:text-purple-600 transition-colors duration-200 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50">My Appointments</Link>
+          )}
+          <Link href="/appointments/new" className="hover:text-purple-600 transition-colors duration-200 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50">Book Appointment</Link>
         </div>
 
         {/* Right side - Notifications and User */}
@@ -79,14 +83,24 @@ export default function Navbar() {
                       </Link>
                     )}
                     {role === 'PATIENT' && (
-                      <Link
-                        href="/patient/reservations"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
-                        style={{ fontFamily: 'var(--font-noto-sans)' }}
-                        onClick={() => setShowDropdown(false)}
-                      >
-                        My Reservations
-                      </Link>
+                      <>
+                        <Link
+                          href="/patient/reservations"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
+                          style={{ fontFamily: 'var(--font-noto-sans)' }}
+                          onClick={() => setShowDropdown(false)}
+                        >
+                          My Reservations
+                        </Link>
+                        <Link
+                          href="/patient/medical-background"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
+                          style={{ fontFamily: 'var(--font-noto-sans)' }}
+                          onClick={() => setShowDropdown(false)}
+                        >
+                          Medical History
+                        </Link>
+                      </>
                     )}
                     <button
                       onClick={() => {

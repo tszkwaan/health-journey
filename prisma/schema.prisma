@@ -33,6 +33,7 @@ model User {
   // Relations
   reservations Reservation[]
   doctorProfile Doctor?
+  medicalBackgrounds MedicalBackground[]
 }
 
 model Doctor {
@@ -113,4 +114,67 @@ model IntakeSession {
   
   // Relations
   reservation Reservation?
+}
+
+model MedicalBackground {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Version tracking
+  version     Int      @default(1)
+  isCurrent   Boolean  @default(true)
+  
+  // Patient relation
+  patientId   String
+  patient     User     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  // Medical conditions
+  pastMedicalConditions Json? // Array of selected conditions
+  otherMedicalCondition String?
+  
+  // Surgical & hospitalization history
+  surgicalHistory Json? // Array of {year, type, reason, dateRange}
+  
+  // Medications
+  medications Json? // Array of {name, dosage, frequency}
+  
+  // Allergies
+  allergies   Json? // Array of {type, reaction, other}
+  otherAllergy String?
+  
+  // Family history
+  familyHistory Json? // Array of selected conditions
+  otherFamilyHistory String?
+  
+  // Lifestyle
+  smoking     Json? // {smokes: boolean, packsPerDay?, yearsSmoked?}
+  alcohol     Json? // {drinks: boolean, type?, frequency?, amount?}
+  exerciseFrequency String?
+  occupation  String?
+  
+  // Reproductive & women's health
+  menstrualCycle String?
+  menopause     String?
+  pregnancyHistory Json? // Array of {year, type}
+  contraceptives Json? // Array of selected contraceptives
+  
+  // Immunizations
+  immunizations Json? // Array of {type, date?, other?}
+  otherImmunization String?
+  
+  // Relations
+  versions    MedicalBackgroundVersion[]
+}
+
+model MedicalBackgroundVersion {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  
+  // Version data (snapshot of the medical background at this point)
+  data        Json     // Complete snapshot of the medical background
+  
+  // Relations
+  medicalBackgroundId String
+  medicalBackground   MedicalBackground @relation(fields: [medicalBackgroundId], references: [id], onDelete: Cascade)
 }
