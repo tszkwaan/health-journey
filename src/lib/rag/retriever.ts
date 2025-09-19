@@ -56,7 +56,7 @@ export class RAGRetriever {
     // Sort by score and return top results
     const topChunks = uniqueMatches
       .sort((a, b) => b.score - a.score)
-      .slice(0, 8) // Return top 8 most relevant chunks to ensure family history is included
+      .slice(0, 10) // Return top 10 most relevant chunks for better context
       .map(item => item.chunk);
 
     console.log(`✅ Returning ${topChunks.length} top chunks:`);
