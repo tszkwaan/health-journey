@@ -11,7 +11,7 @@ class OllamaSummaryAdapter:
     async def summarize(self, steps: List[Dict[str, Any]]) -> Dict[str, Any]:
         print(f"🤖 DEBUG: Ollama adapter called with {len(steps)} steps")
         
-        # Build context from steps
+        # Build context from steps - only confirmed responses
         context = []
         for step in steps:
             if step.get("confirmed") and step.get("text"):
@@ -19,21 +19,29 @@ class OllamaSummaryAdapter:
         
         print(f"🤖 DEBUG: Context built: {context}")
         
-        prompt = f"""Extract structured information from this patient intake conversation:
+        # RAG-based prompt - only extract what was actually said
+        prompt = f"""You are a medical intake assistant. Extract ONLY information that was explicitly provided by the patient in this conversation. Do NOT add, assume, or hallucinate any information.
 
+Conversation:
 {chr(10).join(context)}
 
-Return a JSON object with these exact fields:
+Extract and return a JSON object with these fields. Use "Not provided" for any field that wasn't explicitly mentioned:
 {{
-  "patient_info": "Name: [extracted name]; DOB: [extracted date of birth]; Contact: [extracted phone/contact]",
-  "main_complaint": "[primary reason for visit]",
-  "symptom_onset": "[when symptoms started]",
-  "relevant_history": ["[any relevant medical history]"],
-  "allergies": ["[any allergies mentioned]"],
-  "red_flags": ["[urgent symptoms that need immediate attention]"]
+  "patient_info": "Name: [only if name was given]; DOB: [only if date of birth was given]; Contact: [only if contact was given]",
+  "main_complaint": "[only the reason for visit that was stated]",
+  "symptom_onset": "[only if onset time was mentioned]",
+  "relevant_history": ["[only medical history that was explicitly mentioned]"],
+  "allergies": ["[only allergies that were specifically stated]"],
+  "red_flags": ["[only urgent symptoms that were mentioned]"]
 }}
 
-Only return valid JSON, no other text."""
+CRITICAL: 
+- If a field was not mentioned, use "Not provided" or empty array []
+- Do NOT add information that wasn't in the conversation
+- Do NOT make assumptions about lifestyle, occupation, or medical history
+- Only include what the patient actually said
+
+Return only valid JSON, no other text."""
 
         print(f"🤖 DEBUG: Sending request to Ollama at {self.base_url}/api/generate")
         print(f"🤖 DEBUG: Using model: {self.model}")
@@ -77,18 +85,32 @@ Only return valid JSON, no other text."""
             return self._fallback_extract(steps)
 
     def _fallback_extract(self, steps: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Fallback extraction when Ollama fails"""
+        """Conservative fallback extraction - only what was explicitly provided"""
         def find(step: str):
             for s in steps:
                 if s.get("step") == step and s.get("confirmed"):
                     return s.get("text", "")
             return ""
         
+        # Only extract what was actually provided
+        patient_info = find("identification")
+        main_complaint = find("reason")
+        symptom_onset = find("onset")
+        history = find("history")
+        allergies = find("allergies")
+        
+        # Build patient_info string only if we have data
+        patient_info_str = ""
+        if patient_info:
+            patient_info_str = patient_info
+        else:
+            patient_info_str = "Not provided"
+        
         return {
-            "patient_info": find("identification"),
-            "main_complaint": find("reason"),
-            "symptom_onset": find("onset"),
-            "relevant_history": [find("history")] if find("history") else [],
-            "allergies": [find("allergies")] if find("allergies") else [],
-            "red_flags": [],
+            "patient_info": patient_info_str,
+            "main_complaint": main_complaint if main_complaint else "Not provided",
+            "symptom_onset": symptom_onset if symptom_onset else "Not provided",
+            "relevant_history": [history] if history else [],
+            "allergies": [allergies] if allergies else [],
+            "red_flags": [],  # Only add if explicitly mentioned
         }

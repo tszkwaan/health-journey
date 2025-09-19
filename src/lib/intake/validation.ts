@@ -45,10 +45,10 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
       if (!full_name && /^[a-zA-Z\s]+$/.test(parts[0])) {
         full_name = parts[0];
       }
-      // Look for date pattern in any part
+      // Look for date pattern in any part (support both MM/DD/YYYY and YYYY-MM-DD)
       if (!dob) {
         for (const part of parts) {
-          if (/\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(part)) {
+          if (/\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(part) || /\d{4}-\d{1,2}-\d{1,2}/.test(part)) {
             dob = part;
             break;
           }
@@ -57,7 +57,11 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
       // Look for phone pattern in any part (more specific pattern)
       if (!phone) {
         for (const part of parts) {
-          if (/\d{3}[-\.\s]?\d{3}[-\.\s]?\d{4}/.test(part) || /\d{10,}/.test(part.replace(/\D/g, ''))) {
+          // Skip if it's already identified as a date
+          if (/\d{4}-\d{1,2}-\d{1,2}/.test(part) || /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(part)) {
+            continue;
+          }
+          if (/\d{3}[-\.\s]?\d{3}[-\.\s]?\d{4}/.test(part) || /\d{7,}/.test(part.replace(/\D/g, ''))) {
             phone = part;
             break;
           }
@@ -83,10 +87,14 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
           }
         }
       }
-      // Look for phone pattern in any part (8+ digits)
+      // Look for phone pattern in any part (7+ digits)
       if (!phone) {
         for (const part of spaceParts) {
-          if (/\d{8,}/.test(part)) {
+          // Skip if it's already identified as a date
+          if (/\d{4}-\d{1,2}-\d{1,2}/.test(part) || /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(part)) {
+            continue;
+          }
+          if (/\d{7,}/.test(part)) {
             phone = part;
             break;
           }
@@ -158,11 +166,11 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
 
   // Validate phone (basic format check)
   const phoneDigits = phone.replace(/\D/g, '');
-  if (phoneDigits.length < 8) {
-    return { ok: false, errorCode: "INVALID_PHONE", hint: "Please provide a valid phone number with at least 8 digits." };
+  if (phoneDigits.length < 7) {
+    return { ok: false, errorCode: "INVALID_PHONE", hint: "Please provide a valid phone number with at least 7 digits." };
   }
   
-  // Ensure phone has reasonable length (8-15 digits)
+  // Ensure phone has reasonable length (7-15 digits)
   if (phoneDigits.length > 15) {
     return { ok: false, errorCode: "INVALID_PHONE", hint: "Please provide a valid phone number." };
   }

@@ -8,7 +8,7 @@ class SummaryAdapter:
 
 
 def get_summary_adapter() -> SummaryAdapter:
-    provider = os.getenv("LLM_PROVIDER", "rule-based")
+    provider = os.getenv("LLM_PROVIDER", "rag")
     if provider == "openai" and os.getenv("OPENAI_API_KEY"):
         from .openai_adapter import OpenAISummaryAdapter
         return OpenAISummaryAdapter(api_key=os.getenv("OPENAI_API_KEY", ""))
@@ -17,6 +17,11 @@ def get_summary_adapter() -> SummaryAdapter:
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         model = os.getenv("OLLAMA_MODEL", "llama3.2")
         return OllamaSummaryAdapter(base_url=base_url, model=model)
+    elif provider == "rag":
+        from .rag_adapter import RAGSummaryAdapter
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        model = os.getenv("OLLAMA_MODEL", "llama3.2")
+        return RAGSummaryAdapter(base_url=base_url, model=model)
     else:
         from .rule_based import RuleBasedSummaryAdapter
         return RuleBasedSummaryAdapter()

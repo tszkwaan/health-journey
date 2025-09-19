@@ -34,6 +34,8 @@ export default function IntakePage() {
     async function startSession() {
       if (sessionId) return;
       
+      console.log('🔍 INTAKE PAGE: Starting session with reservationId:', reservationId);
+      
       try {
         setIsLoading(true);
         const response = await fetch('/api/intake/start', {

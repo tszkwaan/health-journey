@@ -58,7 +58,7 @@ export type ValidationResult<T = any> =
 
 // API request/response types
 export interface StartIntakeRequest {
-  // No body needed for start
+  reservationId?: string;
 }
 
 export interface StartIntakeResponse {

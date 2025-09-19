@@ -15,6 +15,7 @@ export default function NewAppointmentPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [booking, setBooking] = useState(false);
+  const [createdReservation, setCreatedReservation] = useState<Reservation | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -118,6 +119,8 @@ export default function NewAppointmentPage() {
       if (response.ok) {
         const reservation = await response.json();
         console.log('Booking successful:', reservation);
+        // Store the created reservation
+        setCreatedReservation(reservation.reservation);
         // Show success modal instead of redirecting
         setShowConfirmModal(false);
         setShowSuccessModal(true);
@@ -380,7 +383,11 @@ export default function NewAppointmentPage() {
                   <button
                     onClick={() => {
                       setShowSuccessModal(false);
-                      router.push('/intake');
+                      if (createdReservation) {
+                        router.push(`/intake?reservationId=${createdReservation.id}`);
+                      } else {
+                        router.push('/intake');
+                      }
                     }}
                     className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 cursor-pointer"
                     style={{ fontFamily: 'var(--font-noto-sans)' }}

@@ -305,22 +305,22 @@ export default function PatientReservationDetailPage() {
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Intake Summary</h3>
                             <div className="bg-gray-50 rounded-lg p-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <p className="text-sm text-gray-600 mb-2"><strong>Reason for visit:</strong> Routine check-up</p>
-                                  <p className="text-sm text-gray-600 mb-2"><strong>Medications:</strong> None</p>
-                                  <p className="text-sm text-gray-600 mb-2"><strong>Past Medical History:</strong> Healthy</p>
-                                  <p className="text-sm text-gray-600 mb-2"><strong>Lifestyle:</strong> Active, non-smoker, occasional alcohol</p>
-                                  <p className="text-sm text-gray-600 mb-2"><strong>Review of Systems:</strong> No issues reported</p>
+                              {reservation.intakeSession.answers ? (
+                                <div className="space-y-3">
+                                  {Object.entries(reservation.intakeSession.answers).map(([key, value]) => (
+                                    <div key={key}>
+                                      <span className="text-sm font-medium text-gray-700 capitalize">
+                                        {key.replace(/_/g, ' ')}:
+                                      </span>
+                                      <span className="text-sm text-gray-600 ml-2">
+                                        {typeof value === 'string' ? value : JSON.stringify(value)}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
-                                <div>
-                                  <p className="text-sm text-gray-600 mb-2"><strong>Allergies:</strong> None</p>
-                                  <p className="text-sm text-gray-600 mb-2"><strong>Chronic Conditions:</strong> None</p>
-                                  <p className="text-sm text-gray-600 mb-2"><strong>Family History:</strong> No significant family history</p>
-                                  <p className="text-sm text-gray-600 mb-2"><strong>Social History:</strong> Works as a software engineer, lives alone</p>
-                                  <p className="text-sm text-gray-600 mb-2"><strong>Physical Exam:</strong> Normal</p>
-                                </div>
-                              </div>
+                              ) : (
+                                <p className="text-sm text-gray-600">No intake data available</p>
+                              )}
                             </div>
                           </div>
                         )}

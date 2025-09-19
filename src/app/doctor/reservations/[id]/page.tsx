@@ -284,57 +284,30 @@ export default function ReservationDetailPage() {
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-4">Intake Summary</h3>
                           <div className="bg-gray-50 rounded-lg p-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <p className="text-sm text-gray-600 mb-2"><strong>Reason for visit:</strong> Routine check-up</p>
-                                <p className="text-sm text-gray-600 mb-2"><strong>Medications:</strong> None</p>
-                                <p className="text-sm text-gray-600 mb-2"><strong>Past Medical History:</strong> Healthy</p>
-                                <p className="text-sm text-gray-600 mb-2"><strong>Lifestyle:</strong> Active, non-smoker, occasional alcohol</p>
-                                <p className="text-sm text-gray-600 mb-2"><strong>Review of Systems:</strong> No issues reported</p>
+                            {reservation.intakeSession.answers ? (
+                              <div className="space-y-3">
+                                {Object.entries(reservation.intakeSession.answers).map(([key, value]) => (
+                                  <div key={key}>
+                                    <span className="text-sm font-medium text-gray-700 capitalize">
+                                      {key.replace(/_/g, ' ')}:
+                                    </span>
+                                    <span className="text-sm text-gray-600 ml-2">
+                                      {typeof value === 'string' ? value : JSON.stringify(value)}
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
-                              <div>
-                                <p className="text-sm text-gray-600 mb-2"><strong>Allergies:</strong> None</p>
-                                <p className="text-sm text-gray-600 mb-2"><strong>Chronic Conditions:</strong> None</p>
-                                <p className="text-sm text-gray-600 mb-2"><strong>Family History:</strong> No significant family history</p>
-                                <p className="text-sm text-gray-600 mb-2"><strong>Social History:</strong> Works as a software engineer, lives alone</p>
-                                <p className="text-sm text-gray-600 mb-2"><strong>Physical Exam:</strong> Normal</p>
-                              </div>
-                            </div>
+                            ) : (
+                              <p className="text-sm text-gray-600">No intake data available</p>
+                            )}
                           </div>
                         </div>
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-4">Complete Transcript</h3>
                           <div className="bg-gray-50 rounded-lg p-4">
-                            <div className="space-y-4">
-                              <div>
-                                <span className="font-medium text-blue-600">Patient:</span>
-                                <p className="text-gray-700 ml-4">I'm here for my annual check-up. I feel generally well, but I want to make sure everything is okay.</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-green-600">Doctor:</span>
-                                <p className="text-gray-700 ml-4">Great. Any specific concerns or changes since your last visit?</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-blue-600">Patient:</span>
-                                <p className="text-gray-700 ml-4">No, not really. I've been exercising regularly and eating healthy.</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-green-600">Doctor:</span>
-                                <p className="text-gray-700 ml-4">That's excellent. Do you have any allergies?</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-blue-600">Patient:</span>
-                                <p className="text-gray-700 ml-4">No, I don't have any allergies.</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-green-600">Doctor:</span>
-                                <p className="text-gray-700 ml-4">Your physical exam is normal. Your vital signs are stable, and I didn't find any abnormalities. Based on your intake and exam, you seem to be in good health. I recommend continuing your healthy lifestyle. Do you have any questions for me?</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-blue-600">Patient:</span>
-                                <p className="text-gray-700 ml-4">No, I think you've covered everything. Thank you, doctor.</p>
-                              </div>
-                            </div>
+                            <p className="text-sm text-gray-600">
+                              Complete conversation transcript will be available here once the intake system is fully implemented with transcript storage.
+                            </p>
                           </div>
                         </div>
                       </>

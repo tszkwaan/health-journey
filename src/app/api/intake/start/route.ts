@@ -1,60 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { createSession } from '@/lib/intake/state';
-import { generateUtterance } from '@/lib/intake/llm';
-import { StartIntakeResponse } from '@/lib/intake/types';
 import { prisma } from '@/lib/prisma';
 
-export async function POST(request: NextRequest): Promise<NextResponse<StartIntakeResponse>> {
+export async function POST(request: NextRequest) {
   try {
+    console.log('🔍 DEBUG: Starting intake session API');
+    
     // Generate new session ID
     const sessionId = uuidv4();
+    console.log('🔍 DEBUG: Generated sessionId:', sessionId);
     
-    // Create new session in memory
-    const session = createSession(sessionId);
-    
-    // Check if request body contains reservationId
+    // Get reservationId from request
     let reservationId: string | undefined;
     try {
       const body = await request.json();
       reservationId = body.reservationId;
-    } catch {
-      // No body or invalid JSON, continue without reservationId
+      console.log('🔍 DEBUG: Received reservationId:', reservationId);
+    } catch (error) {
+      console.log('🔍 DEBUG: No body or invalid JSON:', error);
     }
     
-    // Create database record for the intake session
+    // Create database record
+    console.log('🔍 DEBUG: Creating intake session...');
     const intakeSession = await prisma.intakeSession.create({
       data: {
-        sessionId: session.sessionId,
-        currentStep: session.current_step,
-        answers: session.answers,
-        flags: session.flags,
-        progress: session.progress,
+        sessionId: sessionId,
+        currentStep: 'patient_info',
+        answers: {},
+        flags: { skipped: {}, editMode: false } as any,
+        progress: 0,
         reservationId: reservationId || null
       }
     });
+    console.log('🔍 DEBUG: Created intake session:', intakeSession.id);
     
-    // If reservationId is provided, link the intake session to the reservation
+    // Link to reservation if provided
     if (reservationId) {
+      console.log('🔍 DEBUG: Linking to reservation:', reservationId);
       await prisma.reservation.update({
         where: { id: reservationId },
-        data: { intakeSessionId: intakeSession.id } // Use the database ID, not the sessionId
+        data: { intakeSessionId: intakeSession.id }
       });
+      console.log('🔍 DEBUG: Linked successfully');
     }
     
-    // Generate initial utterance
-    const utterance = generateUtterance('patient_info', 'ask');
+    return NextResponse.json({
+      sessionId: sessionId,
+      current_step: 'patient_info',
+      progress: 0,
+      utterance: "Hello! I'm here to help you get registered today. Could you please confirm your full name, date of birth, and contact number?"
+    });
     
-    const response: StartIntakeResponse = {
-      sessionId: session.sessionId,
-      current_step: session.current_step,
-      progress: session.progress,
-      utterance
-    };
-    
-    return NextResponse.json(response);
   } catch (error) {
-    console.error('Error starting intake session:', error);
+    console.error('❌ Error starting intake session:', error);
     return NextResponse.json(
       { 
         sessionId: '',
