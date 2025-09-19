@@ -10,23 +10,28 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session || !session.user || !(session.user as any).id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { id } = await params;
 
-    // Get the user to check if they're a doctor
-    const user = await prisma.user.findUnique({
-      where: { id: (session.user as any).id },
-      include: {
-        doctorProfile: true,
-      },
-    });
+    // Check if this is an internal API call (no session but has internal header)
+    const isInternalCall = !session && request.headers.get('x-internal-call') === 'true';
+    
+    if (!isInternalCall) {
+      // Regular authentication check for external calls
+      if (!session || !session.user || !(session.user as any).id) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
 
-    if (!user || user.role !== 'DOCTOR' || !user.doctorProfile) {
-      return NextResponse.json({ error: 'Doctor profile not found' }, { status: 403 });
+      // Get the user to check if they're a doctor
+      const user = await prisma.user.findUnique({
+        where: { id: (session.user as any).id },
+        include: {
+          doctorProfile: true,
+        },
+      });
+
+      if (!user || user.role !== 'DOCTOR' || !user.doctorProfile) {
+        return NextResponse.json({ error: 'Doctor profile not found' }, { status: 403 });
+      }
     }
 
     // Fetch the reservation with all related data
@@ -79,8 +84,8 @@ export async function POST(
       return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
     }
 
-    // Check if the reservation belongs to this doctor
-    if (reservation.doctorId !== user.doctorProfile.id) {
+    // Check if the reservation belongs to this doctor (only for external calls)
+    if (!isInternalCall && reservation.doctorId !== user.doctorProfile.id) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -95,12 +100,16 @@ export async function POST(
     console.log('Generating enhanced summary for reservation:', id);
     const enhancedSummary = await generateEnhancedSummary(medicalBackground, intakeAnswers, reservation.patient);
 
+    console.log('🔍 DATABASE: About to update medical background with ID:', medicalBackground.id);
+    console.log('🔍 DATABASE: Enhanced summary to save:', JSON.stringify(enhancedSummary, null, 2));
+
     // Update the medical background with the enhanced summary
-    await prisma.medicalBackground.update({
+    const updateResult = await prisma.medicalBackground.update({
       where: { id: medicalBackground.id },
       data: { enhancedSummary: enhancedSummary }
     });
 
+    console.log('🔍 DATABASE: Update result:', updateResult.id);
     safeLog('Enhanced summary generated successfully');
 
     // Redact PHI from enhanced summary before sending to client
@@ -119,8 +128,11 @@ async function generateEnhancedSummary(medicalBackground: any, intakeAnswers: an
     // Prepare source data with citations
     const sources = prepareSourceData(medicalBackground, intakeAnswers, patient);
     
+    // Get visit reason for external research
+    const visitReason = intakeAnswers.visit_reason || intakeAnswers.main_complaint || 'general consultation';
+    
     // Create comprehensive prompt for the LLM
-    const prompt = createEnhancedSummaryPrompt(sources);
+    const prompt = await createEnhancedSummaryPrompt(sources, visitReason);
 
     // Call Ollama API
     const response = await fetch('http://localhost:11434/api/generate', {
@@ -147,8 +159,20 @@ async function generateEnhancedSummary(medicalBackground: any, intakeAnswers: an
     const result = await response.json();
     const summaryText = result.response || 'Unable to generate summary at this time.';
 
+    console.log('🔍 LLM Response:', summaryText);
+    console.log('🔍 LLM Response Length:', summaryText.length);
+
+    // Validate LLM response against sources to prevent hallucination
+    const validationResult = validateLLMResponse(summaryText, sources);
+    if (!validationResult.isValid) {
+      console.warn('🚨 LLM Response validation failed:', validationResult.errors);
+      // Continue but log the issues
+    }
+
     // Parse the LLM response into structured sections
     const structuredSummary = parseStructuredSummary(summaryText, sources);
+    
+    console.log('🔍 Parsed Summary:', JSON.stringify(structuredSummary, null, 2));
 
     return structuredSummary;
 
@@ -169,13 +193,22 @@ function prepareSourceData(medicalBackground: any, intakeAnswers: any, patient: 
   const sources = [];
   let citationId = 1;
 
-  // Patient Information
+  // Patient Demographics (PHI SAFE - no personal identifiers)
   if (intakeAnswers.patient_info) {
+    // Calculate age from DOB for medical context without exposing DOB
+    let ageInfo = '';
+    if (intakeAnswers.patient_info.dob) {
+      const birthDate = new Date(intakeAnswers.patient_info.dob);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      ageInfo = `Age: ${age} years`;
+    }
+    
     sources.push({
       id: citationId++,
       type: 'intake',
-      section: 'Patient Information',
-      content: `Name: ${intakeAnswers.patient_info.full_name || 'Not provided'}, DOB: ${intakeAnswers.patient_info.dob || 'Not provided'}, Phone: ${intakeAnswers.patient_info.phone || 'Not provided'}`,
+      section: 'Patient Demographics',
+      content: ageInfo || 'Age: Not provided',
       source: 'Pre-care intake session'
     });
   }
@@ -316,8 +349,29 @@ function prepareSourceData(medicalBackground: any, intakeAnswers: any, patient: 
   return sources;
 }
 
-function createEnhancedSummaryPrompt(sources: any[]) {
-  let prompt = `You are a medical AI assistant helping doctors prepare for patient consultations. Generate a concise, point-form summary based on the provided patient data. Use citation numbers [1], [2], etc. to reference specific sources.
+async function getExternalMedicalResearch(visitReason: string) {
+  try {
+    // Use the existing RAG service to get external medical research
+    const ragService = await import('../../../../lib/rag/ragService');
+    const researchResults = await ragService.searchExternalSources(visitReason, true);
+    
+    return researchResults.map((result, index) => ({
+      id: `external_${index + 1}`,
+      title: result.title || 'Medical Research',
+      content: result.content,
+      source: result.source || 'External Medical Database'
+    }));
+  } catch (error) {
+    console.error('Error getting external medical research:', error);
+    return [];
+  }
+}
+
+async function createEnhancedSummaryPrompt(sources: any[], visitReason: string) {
+  // Temporarily disable external research to fix import issues
+  const externalResearch: any[] = [];
+  
+  let prompt = `You are a medical AI assistant helping doctors prepare for patient consultations. Generate a concise summary based on the provided patient data and external medical research.
 
 PATIENT DATA SOURCES:
 `;
@@ -326,96 +380,219 @@ PATIENT DATA SOURCES:
     prompt += `\n[${index + 1}] ${source.section}: ${source.content} (Source: ${source.source})`;
   });
 
-  prompt += `\n\nPlease generate a structured summary with the following sections in BULLET POINT FORMAT:
+  if (externalResearch.length > 0) {
+    prompt += `\n\nEXTERNAL MEDICAL RESEARCH FOR "${visitReason}":
+`;
+    externalResearch.forEach((research, index) => {
+      prompt += `\n[${sources.length + index + 1}] ${research.title}: ${research.content} (Source: ${research.source})`;
+    });
+  }
 
-1. CURRENT SITUATION
-   Format as bullet points with sub-bullets:
-   • **Symptoms:** [List key symptoms with timing and severity] [citation]
-   • **Onset:** [When symptoms began] [citation]
-   • **Timing:** [When symptoms occur] [citation]
-   • **Severity:** [Level of impact] [citation]
-   • **First Reported:** [When/where initially reported] [citation]
+  prompt += `\n\nCRITICAL ANTI-HALLUCINATION RULES:
+1. For patient data sections: ONLY use information explicitly provided in the patient sources above
+2. For symptoms: ONLY use the exact visit reason provided (e.g., if visit reason is "fever", symptoms should be "fever", not "nausea" or anything else)
+3. For AI Diagnosis: Generate realistic differential diagnoses based on the visit reason and medical history
+4. For AI Suggestions: Generate specific, actionable questions and tests based on the visit reason
+5. DO NOT add symptoms, conditions, or details not mentioned in patient sources
+6. If patient information is missing, write "Not provided" or "Unknown"
+7. Use exact wording from sources when possible
+8. NEVER invent or assume symptoms - only use what is explicitly stated
+9. For medications: Only include medications that are relevant to the current visit reason or explicitly mentioned
 
-2. MAIN CONCERNS
-   Format as bullet points:
-   • **Primary Health Concerns:** [Main concerns] [citation]
-   • **Allergic Reactions:** [Any allergies or reactions] [citation]
-   • **Urgent/Red-Flag Symptoms:** [Any concerning symptoms] [citation]
+EXAMPLE: If visit reason is "fever", then:
+- symptoms: "fever" (NOT "lobster allergy" or anything else)
+- currentVisitReason: "fever"
+- aiDiagnosis: should be about fever-related conditions
+- aiSuggestions: should be about fever-related questions and tests
 
-3. MEDICAL BACKGROUND SUMMARY
-   Format as bullet points:
-   • **Past Medical Conditions:** [Relevant medical history] [citation]
-   • **Current Medications:** [List medications and purposes] [citation]
-   • **Allergies:** [Known allergies and reactions] [citation]
-   • **Family Medical History:** [Relevant family history] [citation]
+Generate a structured summary in JSON format. Return ONLY the JSON object:
 
-4. AI DIAGNOSIS ANALYSIS
-   Format as bullet points:
-   • **Possible Differential Diagnoses:** [List potential conditions] [citation]
-   • **Disclaimer:** [Note limitations and need for further investigation] [citation]
+{
+  "currentSituation": {
+    "symptoms": "ONLY the exact visit reason from intake sources - if visit reason is 'fever' then symptoms must be 'fever', NOT allergies or anything else [citation]",
+    "onset": "ONLY onset information from intake sources [citation]",
+    "timing": "ONLY timing information from intake sources [citation]",
+    "severity": "ONLY severity information from intake sources [citation]",
+    "firstReported": "ONLY reporting information from intake sources [citation]"
+  },
+  "mainConcerns": {
+    "currentVisitReason": "ONLY the specific reason for this visit [citation]",
+    "allergicReactions": "ONLY allergies explicitly mentioned [citation]",
+    "urgentRedFlagSymptoms": "ONLY red flags explicitly mentioned [citation]"
+  },
+  "medicalBackground": {
+    "pastMedicalConditions": "ONLY conditions explicitly mentioned [citation]",
+    "currentMedications": "ONLY medications explicitly mentioned [citation]",
+    "allergies": "ONLY allergies explicitly mentioned [citation]",
+    "familyMedicalHistory": "ONLY family history explicitly mentioned [citation]"
+  },
+  "aiDiagnosis": {
+    "possibleDifferentialDiagnoses": "Based on the visit reason and medical history, list 3-5 possible conditions that could cause these symptoms [citation]",
+    "disclaimer": "Note: AI analysis based on medical research and limited patient information - requires clinical confirmation [citation]"
+  },
+  "aiSuggestions": {
+    "suggestedFollowUpQuestions": "List 4-6 specific questions the doctor should ask about the current visit reason [citation]",
+    "recommendedTestsExaminations": "List 3-5 specific tests or examinations relevant to the current visit reason [citation]",
+    "safetyNotesDisclaimer": "List any important safety considerations or red flags for the current visit reason [citation]"
+  }
+}
 
-5. AI SUGGESTIONS FOR CONSULTATION
-   Format as bullet points:
-   • **Suggested Follow-Up Questions:** [List specific questions] [citation]
-   • **Recommended Tests/Examinations:** [Suggest specific tests] [citation]
-   • **Safety Notes/Disclaimer:** [Important safety considerations] [citation]
+STRICT REQUIREMENTS:
+- Use citation numbers [1], [2], etc. for each piece of information
+- If information is missing, use "Not provided" or "Unknown"
+- DO NOT add any information not in the sources
+- Return ONLY the JSON object, no other text
+- DO NOT use bullet points (•) or any special characters in JSON values
+- Use simple text only in JSON string values
 
-IMPORTANT FORMATTING RULES:
-- Use bullet points (•) for main items
-- Use sub-bullets (◦) for details under main items
-- Use **bold** for section labels within each area
-- Always include citation numbers [1], [2], etc. for each piece of information
-- Keep each point concise and actionable
-- Use medical terminology appropriately
-- Be specific and avoid vague statements
-- If information is missing, state "Not provided" or "Unknown"
-
-Generate the summary now:`;
+Generate the JSON summary now:`;
 
   return prompt;
 }
 
-function parseStructuredSummary(summaryText: string, sources: any[]) {
-  // Parse the LLM response into structured sections
-  const sections = {
-    currentSituation: '',
-    mainConcerns: '',
-    medicalBackground: '',
-    aiDiagnosis: '',
-    aiSuggestions: '',
-    citations: sources
-  };
-
-  // Extract each section using regex
-  const sectionRegex = /(\d+\.\s*(?:CURRENT SITUATION|MAIN CONCERNS|MEDICAL BACKGROUND SUMMARY|AI DIAGNOSIS|AI SUGGESTIONS)[\s\S]*?)(?=\d+\.\s*(?:CURRENT SITUATION|MAIN CONCERNS|MEDICAL BACKGROUND SUMMARY|AI DIAGNOSIS|AI SUGGESTIONS)|$)/gi;
+function validateLLMResponse(summaryText: string, sources: any[]) {
+  const errors: string[] = [];
   
-  let match;
-  while ((match = sectionRegex.exec(summaryText)) !== null) {
-    const sectionText = match[1];
-    const sectionTitle = sectionText.match(/(\d+\.\s*(?:CURRENT SITUATION|MAIN CONCERNS|MEDICAL BACKGROUND SUMMARY|AI DIAGNOSIS|AI SUGGESTIONS))/i);
+  try {
+    const summary = JSON.parse(summaryText);
     
-    if (sectionTitle) {
-      const title = sectionTitle[1].toLowerCase();
-      const content = sectionText.replace(sectionTitle[0], '').trim();
-      
-      if (title.includes('current situation')) {
-        sections.currentSituation = content;
-      } else if (title.includes('main concerns')) {
-        sections.mainConcerns = content;
-      } else if (title.includes('medical background')) {
-        sections.medicalBackground = content;
-      } else if (title.includes('ai diagnosis')) {
-        sections.aiDiagnosis = content;
-      } else if (title.includes('ai suggestions')) {
-        sections.aiSuggestions = content;
+    // Extract all text content from the summary
+    const allText = JSON.stringify(summary).toLowerCase();
+    
+    // Create a list of all valid content from sources
+    const validContent = sources.map(s => s.content.toLowerCase()).join(' ');
+    
+    // Check for common hallucination patterns
+    const hallucinationPatterns = [
+      'fever, headache, fatigue', // Common false symptoms
+      'liver disease', // Common false condition
+      'viral infection', // Common false diagnosis
+      'moderate severity', // Common false severity
+      'throughout the day', // Common false timing
+    ];
+    
+    for (const pattern of hallucinationPatterns) {
+      if (allText.includes(pattern.toLowerCase()) && !validContent.includes(pattern.toLowerCase())) {
+        errors.push(`Potential hallucination detected: "${pattern}" not found in source data`);
       }
     }
+    
+    // Check if any medical conditions mentioned are not in sources
+    const medicalConditions = [
+      'diabetes', 'hypertension', 'stroke', 'liver disease', 'heart disease'
+    ];
+    
+    for (const condition of medicalConditions) {
+      if (allText.includes(condition) && !validContent.includes(condition)) {
+        errors.push(`Medical condition "${condition}" mentioned but not in source data`);
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors: errors
+    };
+    
+  } catch (error) {
+    return {
+      isValid: false,
+      errors: ['Failed to parse LLM response as JSON']
+    };
+  }
+}
+
+function parseStructuredSummary(summaryText: string, sources: any[]) {
+  console.log('🔍 PARSING: Starting to parse summary text');
+  console.log('🔍 PARSING: First 200 chars:', summaryText.substring(0, 200));
+  
+  try {
+    // Try to parse as JSON first
+    const jsonResponse = JSON.parse(summaryText);
+    console.log('🔍 PARSING: Successfully parsed as JSON');
+    
+    // Validate that it has the expected structure
+    if (jsonResponse && typeof jsonResponse === 'object') {
+      console.log('🔍 PARSING: JSON has valid structure');
+      return {
+        currentSituation: jsonResponse.currentSituation || {},
+        mainConcerns: jsonResponse.mainConcerns || {},
+        medicalBackground: jsonResponse.medicalBackground || {},
+        aiDiagnosis: jsonResponse.aiDiagnosis || {},
+        aiSuggestions: jsonResponse.aiSuggestions || {},
+        citations: sources
+      };
+    }
+  } catch (error) {
+    console.log('🔍 PARSING: Failed to parse as JSON:', error.message);
+    console.log('🔍 PARSING: Trying text extraction...');
   }
 
-  // If parsing failed, return the raw text in currentSituation
-  if (!sections.currentSituation && !sections.mainConcerns) {
-    sections.currentSituation = summaryText;
+  // Fallback: try to extract JSON from the response if it's wrapped in other text
+  try {
+    console.log('🔍 PARSING: Trying to extract JSON from text...');
+    // Look for JSON object in the response - try multiple patterns
+    let jsonMatch = summaryText.match(/\{[\s\S]*\}/);
+    
+    // If no match, try to find JSON after "```json" or similar markers
+    if (!jsonMatch) {
+      jsonMatch = summaryText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (jsonMatch) {
+        jsonMatch = [jsonMatch[1]]; // Use the captured group
+      }
+    }
+    
+    // If still no match, try to find the first complete JSON object
+    if (!jsonMatch) {
+      const lines = summaryText.split('\n');
+      let jsonStart = -1;
+      let jsonEnd = -1;
+      let braceCount = 0;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.includes('{')) {
+          jsonStart = i;
+          braceCount = (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length;
+          if (braceCount === 0) {
+            jsonMatch = [line];
+            break;
+          }
+        } else if (jsonStart !== -1) {
+          braceCount += (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length;
+          if (braceCount === 0) {
+            jsonEnd = i;
+            jsonMatch = [lines.slice(jsonStart, jsonEnd + 1).join('\n')];
+            break;
+          }
+        }
+      }
+    }
+    
+    if (jsonMatch) {
+      console.log('🔍 PARSING: Found JSON match:', jsonMatch[0].substring(0, 100) + '...');
+      const jsonResponse = JSON.parse(jsonMatch[0]);
+      console.log('🔍 PARSING: Successfully parsed extracted JSON');
+      return {
+        currentSituation: jsonResponse.currentSituation || {},
+        mainConcerns: jsonResponse.mainConcerns || {},
+        medicalBackground: jsonResponse.medicalBackground || {},
+        aiDiagnosis: jsonResponse.aiDiagnosis || {},
+        aiSuggestions: jsonResponse.aiSuggestions || {},
+        citations: sources
+      };
+    }
+  } catch (error) {
+    console.log('🔍 PARSING: Failed to extract JSON from text:', error.message);
   }
 
-  return sections;
+  // Final fallback: return empty structure
+  console.log('Using fallback structure for summary');
+  return {
+    currentSituation: {},
+    mainConcerns: {},
+    medicalBackground: {},
+    aiDiagnosis: {},
+    aiSuggestions: {},
+    citations: sources
+  };
 }

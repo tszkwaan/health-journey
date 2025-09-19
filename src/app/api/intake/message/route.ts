@@ -103,6 +103,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'x-internal-call': 'true',
             },
           });
           

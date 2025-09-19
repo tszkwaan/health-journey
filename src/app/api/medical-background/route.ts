@@ -147,74 +147,79 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Generate LLM summary directly
-    try {
-      console.log('Generating LLM summary for medical background:', medicalBackground.id);
-      
-      // Fetch the medical background with versions for summary generation
-      const medicalBackgroundWithVersions = await prisma.medicalBackground.findUnique({
-        where: { id: medicalBackground.id },
-        include: {
-          versions: {
-            orderBy: { createdAt: 'asc' }
-          }
-        }
-      });
-      
-      if (medicalBackgroundWithVersions) {
-        const summary = await generateMedicalHistorySummary(medicalBackgroundWithVersions);
+    // Generate LLM summary asynchronously (don't wait for it)
+    setImmediate(async () => {
+      try {
+        console.log('Generating LLM summary for medical background:', medicalBackground.id);
         
-        // Update the medical background with the generated summary
-        await prisma.medicalBackground.update({
+        // Fetch the medical background with versions for summary generation
+        const medicalBackgroundWithVersions = await prisma.medicalBackground.findUnique({
           where: { id: medicalBackground.id },
-          data: { llmSummary: summary }
+          include: {
+            versions: {
+              orderBy: { createdAt: 'asc' }
+            }
+          }
         });
         
-        console.log('LLM summary generated successfully');
-      }
-    } catch (summaryError) {
-      console.error('Error generating summary:', summaryError);
-      // Don't fail the main request if summary generation fails
-    }
-
-    // Also trigger enhanced summary generation for any associated reservations
-    try {
-      console.log('Triggering enhanced summary generation for associated reservations...');
-      
-      // Find reservations for this patient that have completed intake
-      const reservations = await prisma.reservation.findMany({
-        where: {
-          patientId: session.user.id,
-          intakeSession: {
-            isNot: null
-          }
-        },
-        select: { id: true }
-      });
-
-      // Trigger enhanced summary generation for each reservation
-      for (const reservation of reservations) {
-        try {
-          const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/reservations/${reservation.id}/enhanced-summary`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+        if (medicalBackgroundWithVersions) {
+          const summary = await generateMedicalHistorySummary(medicalBackgroundWithVersions);
+          
+          // Update the medical background with the generated summary
+          await prisma.medicalBackground.update({
+            where: { id: medicalBackground.id },
+            data: { llmSummary: summary }
           });
           
-          if (response.ok) {
-            console.log(`Enhanced summary generated for reservation ${reservation.id}`);
-          } else {
-            console.error(`Failed to generate enhanced summary for reservation ${reservation.id}:`, response.statusText);
-          }
-        } catch (error) {
-          console.error(`Error generating enhanced summary for reservation ${reservation.id}:`, error);
+          console.log('LLM summary generated successfully');
         }
+      } catch (summaryError) {
+        console.error('Error generating summary:', summaryError);
+        // Don't fail the main request if summary generation fails
       }
-    } catch (error) {
-      console.error('Error triggering enhanced summary generation:', error);
-      // Don't fail the main request if enhanced summary generation fails
-    }
+    });
+
+    // Also trigger enhanced summary generation for any associated reservations asynchronously
+    setImmediate(async () => {
+      try {
+        console.log('Triggering enhanced summary generation for associated reservations...');
+        
+        // Find reservations for this patient that have completed intake
+        const reservations = await prisma.reservation.findMany({
+          where: {
+            patientId: session.user.id,
+            intakeSession: {
+              isNot: null
+            }
+          },
+          select: { id: true }
+        });
+
+        // Trigger enhanced summary generation for each reservation
+        for (const reservation of reservations) {
+          try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/reservations/${reservation.id}/enhanced-summary`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-internal-call': 'true',
+              },
+            });
+            
+            if (response.ok) {
+              console.log(`Enhanced summary generated for reservation ${reservation.id}`);
+            } else {
+              console.error(`Failed to generate enhanced summary for reservation ${reservation.id}:`, response.statusText);
+            }
+          } catch (error) {
+            console.error(`Error generating enhanced summary for reservation ${reservation.id}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error('Error triggering enhanced summary generation:', error);
+        // Don't fail the main request if enhanced summary generation fails
+      }
+    });
 
     return NextResponse.json(medicalBackground);
 

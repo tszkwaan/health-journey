@@ -331,6 +331,25 @@ export default function ReservationDetailPage() {
     return htmlText;
   };
 
+  const renderJsonSection = (sectionData: any, citations: Citation[]) => {
+    if (!sectionData || typeof sectionData !== 'object') {
+      return '<p>No data available</p>';
+    }
+
+    let html = '<ul class="list-disc list-inside space-y-2">';
+    
+    Object.entries(sectionData).forEach(([key, value]) => {
+      if (value && typeof value === 'string' && value.trim() !== 'Not provided' && value.trim() !== 'Unknown') {
+        const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+        const processedValue = renderTextWithCitations(value, citations);
+        html += `<li><strong>${formattedKey}:</strong> ${processedValue}</li>`;
+      }
+    });
+    
+    html += '</ul>';
+    return html;
+  };
+
   if (loading || status === 'loading') {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-50" style={{ fontFamily: 'var(--font-noto-sans)' }}>
@@ -458,7 +477,7 @@ export default function ReservationDetailPage() {
                                 <div 
                                   className="text-gray-800 leading-relaxed prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:ml-4 [&_li]:mb-1"
                                   dangerouslySetInnerHTML={{ 
-                                    __html: renderTextWithCitations(
+                                    __html: renderJsonSection(
                                       reservation.medicalBackground.enhancedSummary.currentSituation, 
                                       reservation.medicalBackground.enhancedSummary.citations
                                     ) 
@@ -466,7 +485,9 @@ export default function ReservationDetailPage() {
                                 />
                               ) : (
                                 <div className="text-gray-800 leading-relaxed prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:ml-4 [&_li]:mb-1">
-                                  {reservation.medicalBackground.enhancedSummary.currentSituation}
+                                  {typeof reservation.medicalBackground.enhancedSummary.currentSituation === 'string' 
+                                    ? reservation.medicalBackground.enhancedSummary.currentSituation
+                                    : 'Loading...'}
                                 </div>
                               )}
                             </div>
@@ -479,13 +500,13 @@ export default function ReservationDetailPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
                                 </div>
-                                Main Concerns
+                                Current Visit Concerns
                               </h4>
                               {isClient ? (
                                 <div 
                                   className="text-gray-800 leading-relaxed prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:ml-4 [&_li]:mb-1"
                                   dangerouslySetInnerHTML={{ 
-                                    __html: renderTextWithCitations(
+                                    __html: renderJsonSection(
                                       reservation.medicalBackground.enhancedSummary.mainConcerns, 
                                       reservation.medicalBackground.enhancedSummary.citations
                                     ) 
@@ -493,7 +514,9 @@ export default function ReservationDetailPage() {
                                 />
                               ) : (
                                 <div className="text-gray-800 leading-relaxed prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:ml-4 [&_li]:mb-1">
-                                  {reservation.medicalBackground.enhancedSummary.mainConcerns}
+                                  {typeof reservation.medicalBackground.enhancedSummary.mainConcerns === 'string' 
+                                    ? reservation.medicalBackground.enhancedSummary.mainConcerns
+                                    : 'Loading...'}
                                 </div>
                               )}
                             </div>
@@ -512,7 +535,7 @@ export default function ReservationDetailPage() {
                                 <div 
                                   className="text-gray-800 leading-relaxed prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:ml-4 [&_li]:mb-1"
                                   dangerouslySetInnerHTML={{ 
-                                    __html: renderTextWithCitations(
+                                    __html: renderJsonSection(
                                       reservation.medicalBackground.enhancedSummary.medicalBackground, 
                                       reservation.medicalBackground.enhancedSummary.citations
                                     ) 
@@ -520,7 +543,9 @@ export default function ReservationDetailPage() {
                                 />
                               ) : (
                                 <div className="text-gray-800 leading-relaxed prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:ml-4 [&_li]:mb-1">
-                                  {reservation.medicalBackground.enhancedSummary.medicalBackground}
+                                  {typeof reservation.medicalBackground.enhancedSummary.medicalBackground === 'string' 
+                                    ? reservation.medicalBackground.enhancedSummary.medicalBackground
+                                    : 'Loading...'}
                                 </div>
                               )}
                             </div>
@@ -533,13 +558,13 @@ export default function ReservationDetailPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                                   </svg>
                                 </div>
-                                AI Diagnosis Analysis
+                                AI Diagnosis Analysis (Research-Based)
                               </h4>
                               {isClient ? (
                                 <div 
                                   className="text-gray-800 leading-relaxed prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:ml-4 [&_li]:mb-1"
                                   dangerouslySetInnerHTML={{ 
-                                    __html: renderTextWithCitations(
+                                    __html: renderJsonSection(
                                       reservation.medicalBackground.enhancedSummary.aiDiagnosis, 
                                       reservation.medicalBackground.enhancedSummary.citations
                                     ) 
@@ -547,7 +572,9 @@ export default function ReservationDetailPage() {
                                 />
                               ) : (
                                 <div className="text-gray-800 leading-relaxed prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:ml-4 [&_li]:mb-1">
-                                  {reservation.medicalBackground.enhancedSummary.aiDiagnosis}
+                                  {typeof reservation.medicalBackground.enhancedSummary.aiDiagnosis === 'string' 
+                                    ? reservation.medicalBackground.enhancedSummary.aiDiagnosis
+                                    : 'Loading...'}
                                 </div>
                               )}
                             </div>
@@ -560,13 +587,13 @@ export default function ReservationDetailPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                                   </svg>
                                 </div>
-                                AI Suggestions for Consultation
+                                AI Suggestions for Consultation (Evidence-Based)
                               </h4>
                               {isClient ? (
                                 <div 
                                   className="text-gray-800 leading-relaxed prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:ml-4 [&_li]:mb-1"
                                   dangerouslySetInnerHTML={{ 
-                                    __html: renderTextWithCitations(
+                                    __html: renderJsonSection(
                                       reservation.medicalBackground.enhancedSummary.aiSuggestions, 
                                       reservation.medicalBackground.enhancedSummary.citations
                                     ) 
@@ -574,7 +601,9 @@ export default function ReservationDetailPage() {
                                 />
                               ) : (
                                 <div className="text-gray-800 leading-relaxed prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:ml-4 [&_li]:mb-1">
-                                  {reservation.medicalBackground.enhancedSummary.aiSuggestions}
+                                  {typeof reservation.medicalBackground.enhancedSummary.aiSuggestions === 'string' 
+                                    ? reservation.medicalBackground.enhancedSummary.aiSuggestions
+                                    : 'Loading...'}
                                 </div>
                               )}
                             </div>
