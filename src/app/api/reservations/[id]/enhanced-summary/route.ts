@@ -409,41 +409,45 @@ Generate a structured summary in JSON format. Return ONLY the JSON object:
 
 {
   "currentSituation": {
-    "symptoms": "ONLY the exact visit reason from intake sources - if visit reason is 'fever' then symptoms must be 'fever', NOT allergies or anything else [citation]",
-    "onset": "ONLY onset information from intake sources [citation]",
-    "timing": "ONLY timing information from intake sources [citation]",
-    "severity": "ONLY severity information from intake sources [citation]",
-    "firstReported": "ONLY reporting information from intake sources [citation]"
+    "symptoms": "ONLY the exact visit reason from intake sources - if visit reason is 'fever' then symptoms must be 'fever', NOT allergies or anything else [2]",
+    "onset": "ONLY onset information from intake sources [2]",
+    "timing": "ONLY timing information from intake sources [2]",
+    "severity": "ONLY severity information from intake sources [2]",
+    "firstReported": "ONLY reporting information from intake sources [2]"
   },
   "mainConcerns": {
-    "currentVisitReason": "ONLY the specific reason for this visit [citation]",
-    "allergicReactions": "ONLY allergies explicitly mentioned [citation]",
-    "urgentRedFlagSymptoms": "ONLY red flags explicitly mentioned [citation]"
+    "currentVisitReason": "ONLY the specific reason for this visit [2]",
+    "allergicReactions": "ONLY allergies explicitly mentioned [3]",
+    "urgentRedFlagSymptoms": "ONLY red flags explicitly mentioned [2]"
   },
   "medicalBackground": {
-    "pastMedicalConditions": "ONLY conditions explicitly mentioned [citation]",
-    "currentMedications": "ONLY medications explicitly mentioned [citation]",
-    "allergies": "ONLY allergies explicitly mentioned [citation]",
-    "familyMedicalHistory": "ONLY family history explicitly mentioned [citation]"
+    "pastMedicalConditions": "ONLY conditions explicitly mentioned [4]",
+    "currentMedications": "ONLY medications explicitly mentioned [5]",
+    "allergies": "ONLY allergies explicitly mentioned [3]",
+    "familyMedicalHistory": "ONLY family history explicitly mentioned [7]"
   },
   "aiDiagnosis": {
-    "possibleDifferentialDiagnoses": "Based on the visit reason and medical history, list 3-5 possible conditions that could cause these symptoms [citation]",
-    "disclaimer": "Note: AI analysis based on medical research and limited patient information - requires clinical confirmation [citation]"
+    "possibleDifferentialDiagnoses": "viral infection, bacterial infection, medication side effects, allergic reaction, or other fever-causing conditions [1]",
+    "disclaimer": "Note: AI analysis based on medical research and limited patient information - requires clinical confirmation [1]"
   },
   "aiSuggestions": {
-    "suggestedFollowUpQuestions": "List 4-6 specific questions the doctor should ask about the current visit reason [citation]",
-    "recommendedTestsExaminations": "List 3-5 specific tests or examinations relevant to the current visit reason [citation]",
-    "safetyNotesDisclaimer": "List any important safety considerations or red flags for the current visit reason [citation]"
+    "suggestedFollowUpQuestions": "temperature, duration, associated symptoms, recent exposures, medication history [2]",
+    "recommendedTestsExaminations": "temperature measurement, complete blood count, urinalysis, chest X-ray, blood cultures [2]",
+    "safetyNotesDisclaimer": "monitor for high fever, signs of dehydration, severe headache, neck stiffness [2]"
   }
 }
 
-STRICT REQUIREMENTS:
-- Use citation numbers [1], [2], etc. for each piece of information
+CRITICAL INSTRUCTIONS: 
+- Return ONLY the JSON object, no other text, no explanations, no markdown formatting
+- Do not include code blocks or markdown formatting
+- Do not include any text before or after the JSON
+- Use simple text lists within the string values (no special characters)
+- Always include citation numbers [1], [2], etc. for each piece of information
 - If information is missing, use "Not provided" or "Unknown"
-- DO NOT add any information not in the sources
-- Return ONLY the JSON object, no other text
-- DO NOT use bullet points (•) or any special characters in JSON values
-- Use simple text only in JSON string values
+- Keep each point concise and actionable
+- Use medical terminology appropriately
+
+You must respond with ONLY the JSON object, nothing else. Start your response with { and end with }.
 
 Generate the JSON summary now:`;
 
