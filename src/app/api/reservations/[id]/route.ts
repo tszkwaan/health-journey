@@ -36,7 +36,33 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            medicalBackgrounds: {
+              where: { isCurrent: true },
+              select: {
+                id: true,
+                llmSummary: true,
+                enhancedSummary: true,
+                pastMedicalConditions: true,
+                otherMedicalCondition: true,
+                surgicalHistory: true,
+                medications: true,
+                allergies: true,
+                otherAllergy: true,
+                familyHistory: true,
+                otherFamilyHistory: true,
+                smoking: true,
+                alcohol: true,
+                exerciseFrequency: true,
+                occupation: true,
+                menstrualCycle: true,
+                menopause: true,
+                pregnancyHistory: true,
+                contraceptives: true,
+                immunizations: true,
+                otherImmunization: true
+              }
+            }
           }
         },
         timeSlot: {
@@ -66,7 +92,13 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    return NextResponse.json(reservation);
+    // Transform the data to include medical background in the expected format
+    const transformedReservation = {
+      ...reservation,
+      medicalBackground: reservation.patient.medicalBackgrounds[0] || null
+    };
+
+    return NextResponse.json(transformedReservation);
 
   } catch (error) {
     console.error('Error fetching reservation:', error);

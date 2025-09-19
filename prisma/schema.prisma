@@ -163,6 +163,12 @@ model MedicalBackground {
   immunizations Json? // Array of {type, date?, other?}
   otherImmunization String?
   
+  // LLM Summary
+  llmSummary  String? // AI-generated summary of medical history
+  
+  // Enhanced Summary with Citations
+  enhancedSummary Json? // Structured summary with citations: { currentSituation, mainConcerns, medicalBackground, aiDiagnosis, aiSuggestions, citations }
+  
   // Relations
   versions    MedicalBackgroundVersion[]
 }

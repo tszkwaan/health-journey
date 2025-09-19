@@ -23,6 +23,47 @@ interface IntakeSession {
   answers?: any;
 }
 
+interface Citation {
+  id: number;
+  type: 'intake' | 'medical_history';
+  section: string;
+  content: string;
+  source: string;
+}
+
+interface EnhancedSummary {
+  currentSituation: string;
+  mainConcerns: string;
+  medicalBackground: string;
+  aiDiagnosis: string;
+  aiSuggestions: string;
+  citations: Citation[];
+}
+
+interface MedicalBackground {
+  id: string;
+  llmSummary?: string;
+  enhancedSummary?: EnhancedSummary;
+  pastMedicalConditions?: string[];
+  otherMedicalCondition?: string;
+  surgicalHistory?: any[];
+  medications?: any[];
+  allergies?: any[];
+  otherAllergy?: string;
+  familyHistory?: string[];
+  otherFamilyHistory?: string;
+  smoking?: any;
+  alcohol?: any;
+  exerciseFrequency?: string;
+  occupation?: string;
+  menstrualCycle?: string;
+  menopause?: string;
+  pregnancyHistory?: any[];
+  contraceptives?: string[];
+  immunizations?: any[];
+  otherImmunization?: string;
+}
+
 interface Reservation {
   id: string;
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
@@ -30,9 +71,10 @@ interface Reservation {
   patient: Patient;
   timeSlot: TimeSlot;
   intakeSession?: IntakeSession;
+  medicalBackground?: MedicalBackground | null;
 }
 
-type TabType = 'overview' | 'notes' | 'intake';
+type TabType = 'overview' | 'notes' | 'intake' | 'medical-history';
 
 export default function ReservationDetailPage() {
   const { data: session, status } = useSession();
@@ -45,6 +87,7 @@ export default function ReservationDetailPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
 
   // Redirect if not authenticated or not a doctor
   useEffect(() => {
@@ -141,6 +184,53 @@ export default function ReservationDetailPage() {
     }, 1000);
   };
 
+  const generateEnhancedSummary = async () => {
+    if (!reservation) return;
+    
+    setGeneratingSummary(true);
+    try {
+      const response = await fetch(`/api/reservations/${reservationId}/enhanced-summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const { enhancedSummary } = await response.json();
+        // Update the reservation with the new enhanced summary
+        setReservation(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            medicalBackground: prev.medicalBackground ? {
+              ...prev.medicalBackground,
+              enhancedSummary: enhancedSummary
+            } : null
+          };
+        });
+      } else {
+        console.error('Failed to generate enhanced summary');
+      }
+    } catch (error) {
+      console.error('Error generating enhanced summary:', error);
+    } finally {
+      setGeneratingSummary(false);
+    }
+  };
+
+  const renderTextWithCitations = (text: string, citations: Citation[]) => {
+    if (!citations || citations.length === 0) return text;
+    
+    // Replace citation numbers with clickable elements
+    return text.replace(/\[(\d+)\]/g, (match, citationNumber) => {
+      const citation = citations.find(c => c.id === parseInt(citationNumber));
+      if (!citation) return match;
+      
+      return `<sup class="inline-flex items-center justify-center w-5 h-5 text-xs font-medium text-blue-600 bg-blue-100 rounded-full cursor-pointer hover:bg-blue-200 transition-colors" title="${citation.section}: ${citation.content} (Source: ${citation.source})">[${citationNumber}]</sup>`;
+    });
+  };
+
   if (loading || status === 'loading') {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-50" style={{ fontFamily: 'var(--font-noto-sans)' }}>
@@ -214,7 +304,8 @@ export default function ReservationDetailPage() {
                   {[
                     { id: 'overview', label: 'Overview' },
                     { id: 'notes', label: 'Notes' },
-                    { id: 'intake', label: 'Intake' }
+                    { id: 'intake', label: 'Intake' },
+                    { id: 'medical-history', label: 'Medical History' }
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -235,6 +326,134 @@ export default function ReservationDetailPage() {
               <div className="p-6">
                 {activeTab === 'overview' && (
                   <div className="space-y-6">
+                    {/* Comprehensive Patient Summary - Moved to Top */}
+                    {reservation.medicalBackground && (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-lg font-semibold text-gray-900">Comprehensive Patient Summary</h3>
+                          {!reservation.medicalBackground.enhancedSummary && (
+                            <button
+                              onClick={generateEnhancedSummary}
+                              disabled={generatingSummary}
+                              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                            >
+                              {generatingSummary ? 'Generating...' : 'Generate Enhanced Summary'}
+                            </button>
+                          )}
+                        </div>
+
+                        {reservation.medicalBackground.enhancedSummary ? (
+                          <div className="space-y-6">
+                            {/* Current Situation */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                              <h4 className="text-lg font-semibold text-blue-900 mb-3 flex items-center">
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Current Situation
+                              </h4>
+                              <div 
+                                className="text-gray-800 leading-relaxed prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: renderTextWithCitations(
+                                    reservation.medicalBackground.enhancedSummary.currentSituation, 
+                                    reservation.medicalBackground.enhancedSummary.citations
+                                  ) 
+                                }}
+                              />
+                            </div>
+
+                            {/* Main Concerns */}
+                            <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-lg p-6 border border-red-200">
+                              <h4 className="text-lg font-semibold text-red-900 mb-3 flex items-center">
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                </svg>
+                                Main Concerns
+                              </h4>
+                              <div 
+                                className="text-gray-800 leading-relaxed prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: renderTextWithCitations(
+                                    reservation.medicalBackground.enhancedSummary.mainConcerns, 
+                                    reservation.medicalBackground.enhancedSummary.citations
+                                  ) 
+                                }}
+                              />
+                            </div>
+
+                            {/* Medical Background */}
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+                              <h4 className="text-lg font-semibold text-green-900 mb-3 flex items-center">
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Medical Background Summary
+                              </h4>
+                              <div 
+                                className="text-gray-800 leading-relaxed prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: renderTextWithCitations(
+                                    reservation.medicalBackground.enhancedSummary.medicalBackground, 
+                                    reservation.medicalBackground.enhancedSummary.citations
+                                  ) 
+                                }}
+                              />
+                            </div>
+
+                            {/* AI Diagnosis */}
+                            <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-lg p-6 border border-purple-200">
+                              <h4 className="text-lg font-semibold text-purple-900 mb-3 flex items-center">
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                </svg>
+                                AI Diagnosis Analysis
+                              </h4>
+                              <div 
+                                className="text-gray-800 leading-relaxed prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: renderTextWithCitations(
+                                    reservation.medicalBackground.enhancedSummary.aiDiagnosis, 
+                                    reservation.medicalBackground.enhancedSummary.citations
+                                  ) 
+                                }}
+                              />
+                            </div>
+
+                            {/* AI Suggestions */}
+                            <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg p-6 border border-amber-200">
+                              <h4 className="text-lg font-semibold text-amber-900 mb-3 flex items-center">
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                </svg>
+                                AI Suggestions for Consultation
+                              </h4>
+                              <div 
+                                className="text-gray-800 leading-relaxed prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: renderTextWithCitations(
+                                    reservation.medicalBackground.enhancedSummary.aiSuggestions, 
+                                    reservation.medicalBackground.enhancedSummary.citations
+                                  ) 
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-100 flex items-center justify-center">
+                              <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">Enhanced Summary Not Generated</h3>
+                            <p className="text-gray-600 mb-4">Click the button above to generate a comprehensive AI summary combining intake answers and medical history.</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Appointment and Patient Information */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Appointment Information</h3>
@@ -360,6 +579,103 @@ export default function ReservationDetailPage() {
                         </div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">Intake Not Started</h3>
                         <p className="text-gray-600">The patient has not yet completed their pre-care intake.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'medical-history' && (
+                  <div className="space-y-6">
+                    {reservation.medicalBackground ? (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Detailed Medical History</h3>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="space-y-4">
+                            {/* Past Medical Conditions */}
+                            {((reservation.medicalBackground.pastMedicalConditions?.length || 0) > 0 || reservation.medicalBackground.otherMedicalCondition) && (
+                              <div>
+                                <h4 className="font-medium text-gray-900 mb-2">Past Medical Conditions</h4>
+                                <div className="text-sm text-gray-600">
+                                  {reservation.medicalBackground.pastMedicalConditions?.join(', ')}
+                                  {reservation.medicalBackground.otherMedicalCondition && 
+                                    ((reservation.medicalBackground.pastMedicalConditions?.length || 0) > 0 ? ', ' : '') + 
+                                    reservation.medicalBackground.otherMedicalCondition}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Medications */}
+                            {(reservation.medicalBackground.medications?.length || 0) > 0 && (
+                              <div>
+                                <h4 className="font-medium text-gray-900 mb-2">Current Medications</h4>
+                                <div className="space-y-1">
+                                  {reservation.medicalBackground.medications?.map((med: any, index: number) => (
+                                    <div key={index} className="text-sm text-gray-600">
+                                      {med.name}: {med.dosage} {med.frequency}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Allergies */}
+                            {((reservation.medicalBackground.allergies?.length || 0) > 0 || reservation.medicalBackground.otherAllergy) && (
+                              <div>
+                                <h4 className="font-medium text-gray-900 mb-2">Allergies</h4>
+                                <div className="text-sm text-gray-600">
+                                  {reservation.medicalBackground.allergies?.map((allergy: any) => `${allergy.type} (${allergy.reaction})`).join(', ')}
+                                  {reservation.medicalBackground.otherAllergy && 
+                                    ((reservation.medicalBackground.allergies?.length || 0) > 0 ? ', ' : '') + 
+                                    reservation.medicalBackground.otherAllergy}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Family History */}
+                            {((reservation.medicalBackground.familyHistory?.length || 0) > 0 || reservation.medicalBackground.otherFamilyHistory) && (
+                              <div>
+                                <h4 className="font-medium text-gray-900 mb-2">Family History</h4>
+                                <div className="text-sm text-gray-600">
+                                  {reservation.medicalBackground.familyHistory?.join(', ')}
+                                  {reservation.medicalBackground.otherFamilyHistory && 
+                                    ((reservation.medicalBackground.familyHistory?.length || 0) > 0 ? ', ' : '') + 
+                                    reservation.medicalBackground.otherFamilyHistory}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Lifestyle */}
+                            {(reservation.medicalBackground.smoking?.smokes || reservation.medicalBackground.alcohol?.drinks || reservation.medicalBackground.exerciseFrequency || reservation.medicalBackground.occupation) && (
+                              <div>
+                                <h4 className="font-medium text-gray-900 mb-2">Lifestyle</h4>
+                                <div className="space-y-1 text-sm text-gray-600">
+                                  {reservation.medicalBackground.smoking?.smokes && (
+                                    <div>Smoking: {reservation.medicalBackground.smoking.packsPerDay || 'Unknown'} packs/day for {reservation.medicalBackground.smoking.yearsSmoked || 'Unknown'} years</div>
+                                  )}
+                                  {reservation.medicalBackground.alcohol?.drinks && (
+                                    <div>Alcohol: {reservation.medicalBackground.alcohol.type || 'Unknown'} {reservation.medicalBackground.alcohol.frequency || 'Unknown frequency'}</div>
+                                  )}
+                                  {reservation.medicalBackground.exerciseFrequency && (
+                                    <div>Exercise: {reservation.medicalBackground.exerciseFrequency}</div>
+                                  )}
+                                  {reservation.medicalBackground.occupation && (
+                                    <div>Occupation: {reservation.medicalBackground.occupation}</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                          <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Medical History Available</h3>
+                        <p className="text-gray-600">The patient has not yet completed their medical history form.</p>
                       </div>
                     )}
                   </div>

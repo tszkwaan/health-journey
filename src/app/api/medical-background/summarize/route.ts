@@ -3,56 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { PrismaClient } from '@prisma/client';
 
-// Create a new Prisma client instance for this API route
 const prisma = new PrismaClient();
-
-// Cleanup function
-const cleanup = async () => {
-  await prisma.$disconnect();
-};
-
-// Handle cleanup on process termination
-if (typeof process !== 'undefined') {
-  process.on('beforeExit', cleanup);
-  process.on('SIGINT', cleanup);
-  process.on('SIGTERM', cleanup);
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is a patient
-    if ((session.user as any)?.role !== 'PATIENT') {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
-
-    // Get the current medical background for the patient
-    const medicalBackground = await prisma.medicalBackground.findFirst({
-      where: {
-        patientId: session.user.id,
-        isCurrent: true
-      },
-      orderBy: {
-        version: 'desc'
-      }
-    });
-
-    // Return null if no medical background exists (this is normal for new users)
-    return NextResponse.json(medicalBackground || null);
-
-  } catch (error) {
-    console.error('Error fetching medical background:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch medical background' },
-      { status: 500 }
-    );
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,122 +18,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    const body = await request.json();
-    
-    // Get the current version number
-    const currentVersion = await prisma.medicalBackground.findFirst({
-      where: {
-        patientId: session.user.id,
-        isCurrent: true
-      },
-      orderBy: {
-        version: 'desc'
-      }
-    });
+    const { medicalBackgroundId } = await request.json();
 
-    const newVersion = (currentVersion?.version || 0) + 1;
-
-    // Mark all previous versions as not current
-    await prisma.medicalBackground.updateMany({
-      where: {
-        patientId: session.user.id,
-        isCurrent: true
-      },
-      data: {
-        isCurrent: false
-      }
-    });
-
-    // Create new medical background record
-    const medicalBackground = await prisma.medicalBackground.create({
-      data: {
-        patientId: session.user.id,
-        version: newVersion,
-        isCurrent: true,
-        pastMedicalConditions: body.pastMedicalConditions || [],
-        otherMedicalCondition: body.otherMedicalCondition || null,
-        surgicalHistory: body.surgicalHistory || [],
-        medications: body.medications || [],
-        allergies: body.allergies || [],
-        otherAllergy: body.otherAllergy || null,
-        familyHistory: body.familyHistory || [],
-        otherFamilyHistory: body.otherFamilyHistory || null,
-        smoking: body.smoking || null,
-        alcohol: body.alcohol || null,
-        exerciseFrequency: body.exerciseFrequency || null,
-        occupation: body.occupation || null,
-        menstrualCycle: body.menstrualCycle || null,
-        menopause: body.menopause || null,
-        pregnancyHistory: body.pregnancyHistory || [],
-        contraceptives: body.contraceptives || [],
-        immunizations: body.immunizations || [],
-        otherImmunization: body.otherImmunization || null
-      }
-    });
-
-    // Create version snapshot
-    await prisma.medicalBackgroundVersion.create({
-      data: {
-        medicalBackgroundId: medicalBackground.id,
-        data: {
-          pastMedicalConditions: body.pastMedicalConditions || [],
-          otherMedicalCondition: body.otherMedicalCondition || null,
-          surgicalHistory: body.surgicalHistory || [],
-          medications: body.medications || [],
-          allergies: body.allergies || [],
-          otherAllergy: body.otherAllergy || null,
-          familyHistory: body.familyHistory || [],
-          otherFamilyHistory: body.otherFamilyHistory || null,
-          smoking: body.smoking || null,
-          alcohol: body.alcohol || null,
-          exerciseFrequency: body.exerciseFrequency || null,
-          occupation: body.occupation || null,
-          menstrualCycle: body.menstrualCycle || null,
-          menopause: body.menopause || null,
-          pregnancyHistory: body.pregnancyHistory || [],
-          contraceptives: body.contraceptives || [],
-          immunizations: body.immunizations || [],
-          otherImmunization: body.otherImmunization || null
-        }
-      }
-    });
-
-    // Generate LLM summary directly
-    try {
-      console.log('Generating LLM summary for medical background:', medicalBackground.id);
-      
-      // Fetch the medical background with versions for summary generation
-      const medicalBackgroundWithVersions = await prisma.medicalBackground.findUnique({
-        where: { id: medicalBackground.id },
-        include: {
-          versions: {
-            orderBy: { createdAt: 'asc' }
-          }
-        }
-      });
-      
-      if (medicalBackgroundWithVersions) {
-        const summary = await generateMedicalHistorySummary(medicalBackgroundWithVersions);
-        
-        // Update the medical background with the generated summary
-        await prisma.medicalBackground.update({
-          where: { id: medicalBackground.id },
-          data: { llmSummary: summary }
-        });
-        
-        console.log('LLM summary generated successfully');
-      }
-    } catch (summaryError) {
-      console.error('Error generating summary:', summaryError);
-      // Don't fail the main request if summary generation fails
+    if (!medicalBackgroundId) {
+      return NextResponse.json({ error: 'Medical background ID is required' }, { status: 400 });
     }
 
-    return NextResponse.json(medicalBackground);
+    // Get the medical background record
+    const medicalBackground = await prisma.medicalBackground.findUnique({
+      where: { id: medicalBackgroundId },
+      include: {
+        versions: {
+          orderBy: { createdAt: 'asc' }
+        }
+      }
+    });
+
+    if (!medicalBackground) {
+      return NextResponse.json({ error: 'Medical background not found' }, { status: 404 });
+    }
+
+    // Generate summary using LLM
+    const summary = await generateMedicalHistorySummary(medicalBackground);
+
+    // Update the medical background with the summary
+    await prisma.medicalBackground.update({
+      where: { id: medicalBackgroundId },
+      data: { llmSummary: summary }
+    });
+
+    return NextResponse.json({ summary });
 
   } catch (error) {
-    console.error('Error saving medical background:', error);
+    console.error('Error generating medical history summary:', error);
     return NextResponse.json(
-      { error: 'Failed to save medical background' },
+      { error: 'Failed to generate medical history summary' },
       { status: 500 }
     );
   }
@@ -212,11 +82,11 @@ async function generateMedicalHistorySummary(medicalBackground: any): Promise<st
         immunizations: medicalBackground.immunizations || [],
         otherImmunization: medicalBackground.otherImmunization
       },
-      history: medicalBackground.versions?.map((version: any) => ({
+      history: medicalBackground.versions.map((version: any) => ({
         version: version.data.version,
         createdAt: version.createdAt,
         data: version.data
-      })) || []
+      }))
     };
 
     // Create a comprehensive prompt for the LLM
