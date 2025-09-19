@@ -1,4 +1,5 @@
 import { DocumentChunk, PatientContext } from './types';
+import { PHIRedactor, safeLog } from '../phi-redaction';
 
 export class DocumentProcessor {
   async processPatientData(reservationId: string, patientData: any): Promise<DocumentChunk[]> {
@@ -105,10 +106,10 @@ export class DocumentProcessor {
     // Process family history
     if (medicalBackground.familyHistory?.length > 0) {
       const content = medicalBackground.familyHistory.join(', ');
-      console.log(`🏠 Creating family history chunk: "${content}"`);
+      safeLog(`🏠 Creating family history chunk: "${content}"`);
       chunks.push(this.createChunk('family_history', content, 'medical_history', reservationId, patientId));
     } else {
-      console.log(`❌ No family history found in medical background:`, medicalBackground.familyHistory);
+      safeLog(`❌ No family history found in medical background:`, medicalBackground.familyHistory);
     }
 
     if (medicalBackground.otherFamilyHistory) {

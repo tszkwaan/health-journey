@@ -3,6 +3,7 @@ import { RAGRetriever } from './retriever';
 import { RAGGenerator } from './generator';
 import { ExternalSearchService } from './externalSearch';
 import { DocumentChunk, RAGResponse, PatientContext } from './types';
+import { PHIRedactor, safeLog } from '../phi-redaction';
 
 export class RAGService {
   private documentProcessor: DocumentProcessor;
@@ -35,13 +36,13 @@ export class RAGService {
       // Add to retriever
       this.retriever.addChunks(chunksWithEmbeddings);
       
-      console.log(`Processed ${chunksWithEmbeddings.length} chunks for reservation ${reservationId}`);
+      safeLog(`Processed ${chunksWithEmbeddings.length} chunks for reservation ${reservationId}`);
       
       // Debug: Log all chunks to see what we have
       chunksWithEmbeddings.forEach((chunk, index) => {
-        console.log(`  Chunk ${index + 1}: ${chunk.metadata.source} - ${chunk.metadata.section}`);
+        safeLog(`  Chunk ${index + 1}: ${chunk.metadata.source} - ${chunk.metadata.section}`);
         if (chunk.metadata.section === 'family_history') {
-          console.log(`    🏠 FAMILY HISTORY CHUNK: ${chunk.content}`);
+          safeLog(`    🏠 FAMILY HISTORY CHUNK: ${chunk.content}`);
         }
       });
     } catch (error) {

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
 import { RAGService } from '@/lib/rag/ragService';
+import { PHIRedactor, safeLog } from '@/lib/phi-redaction';
 
 // Global RAG service instance
 const ragService = new RAGService();
@@ -114,7 +115,17 @@ export async function POST(
     // Generate RAG response
     const ragResponse = await ragService.generateResponse(message, reservationId, includeExternal);
 
-    return NextResponse.json(ragResponse);
+    // Redact PHI from response before sending to client
+    const redactedResponse = {
+      ...ragResponse,
+      response: PHIRedactor.redact(ragResponse.response),
+      sources: ragResponse.sources?.map(source => ({
+        ...source,
+        content: PHIRedactor.redact(source.content)
+      }))
+    };
+
+    return NextResponse.json(redactedResponse);
 
   } catch (error) {
     console.error('Error in chat API:', error);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
+import { PHIRedactor, safeLog } from '@/lib/phi-redaction';
 
 export async function POST(
   request: NextRequest,
@@ -100,9 +101,12 @@ export async function POST(
       data: { enhancedSummary: enhancedSummary }
     });
 
-    console.log('Enhanced summary generated successfully');
+    safeLog('Enhanced summary generated successfully');
 
-    return NextResponse.json({ enhancedSummary });
+    // Redact PHI from enhanced summary before sending to client
+    const redactedSummary = PHIRedactor.redactObject(enhancedSummary);
+    
+    return NextResponse.json({ enhancedSummary: redactedSummary });
 
   } catch (error) {
     console.error('Error generating enhanced summary:', error);
