@@ -70,7 +70,7 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
     }
   }
 
-  // Pattern 4: Space-separated "elena chong 1994-10-10 87709010"
+  // Pattern 4: Space-separated "elena chong 1994-10-10 87709010" or "elena chong 1994 October 10th 87709010"
   if (!full_name || !dob || !phone) {
     const spaceParts = trimmed.split(/\s+/).filter(p => p.trim());
     
@@ -80,6 +80,7 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
     
     for (let i = 0; i < spaceParts.length; i++) {
       const part = spaceParts[i];
+      // Check for numeric date patterns
       if (/\d{4}-\d{1,2}-\d{1,2}/.test(part) || /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(part)) {
         if (dateIndex === -1) {
           dob = part;
@@ -89,6 +90,54 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
         if (phoneIndex === -1) {
           phone = part;
           phoneIndex = i;
+        }
+      }
+    }
+    
+    // Check for written date patterns like "1994 October 10th" or "October 10th 1994"
+    if (!dob) {
+      for (let i = 0; i < spaceParts.length - 2; i++) {
+        const yearMatch = spaceParts[i].match(/^(\d{4})$/);
+        const monthMatch = spaceParts[i + 1].match(/^(january|february|march|april|may|june|july|august|september|october|november|december)$/i);
+        const dayMatch = spaceParts[i + 2].match(/^(\d{1,2})(st|nd|rd|th)?$/i);
+        
+        if (yearMatch && monthMatch && dayMatch) {
+          // Format: "1994 October 10th"
+          const year = yearMatch[1];
+          const month = monthMatch[1].toLowerCase();
+          const day = dayMatch[1];
+          
+          const monthMap: { [key: string]: string } = {
+            'january': '01', 'february': '02', 'march': '03', 'april': '04',
+            'may': '05', 'june': '06', 'july': '07', 'august': '08',
+            'september': '09', 'october': '10', 'november': '11', 'december': '12'
+          };
+          
+          dob = `${year}-${monthMap[month]}-${day.padStart(2, '0')}`;
+          dateIndex = i;
+          break;
+        }
+        
+        // Check for "October 10th 1994" format
+        const monthMatch2 = spaceParts[i].match(/^(january|february|march|april|may|june|july|august|september|october|november|december)$/i);
+        const dayMatch2 = spaceParts[i + 1].match(/^(\d{1,2})(st|nd|rd|th)?$/i);
+        const yearMatch2 = spaceParts[i + 2].match(/^(\d{4})$/);
+        
+        if (monthMatch2 && dayMatch2 && yearMatch2) {
+          // Format: "October 10th 1994"
+          const year = yearMatch2[1];
+          const month = monthMatch2[1].toLowerCase();
+          const day = dayMatch2[1];
+          
+          const monthMap: { [key: string]: string } = {
+            'january': '01', 'february': '02', 'march': '03', 'april': '04',
+            'may': '05', 'june': '06', 'july': '07', 'august': '08',
+            'september': '09', 'october': '10', 'november': '11', 'december': '12'
+          };
+          
+          dob = `${year}-${monthMap[month]}-${day.padStart(2, '0')}`;
+          dateIndex = i;
+          break;
         }
       }
     }

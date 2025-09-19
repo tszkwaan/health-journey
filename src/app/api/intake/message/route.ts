@@ -23,12 +23,37 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
       );
     }
     
+    // First, try to restore session from database if not in memory
+    let session = getSession(sessionId);
+    if (!session) {
+      console.log('🔍 MESSAGE API: Session not in memory, restoring from database...');
+      const dbSession = await prisma.intakeSession.findUnique({
+        where: { sessionId: sessionId }
+      });
+      
+      if (dbSession) {
+        console.log('🔍 MESSAGE API: Found session in database, restoring to memory...');
+        // Restore session to memory
+        const { createSession } = await import('@/lib/intake/state');
+        session = createSession(sessionId);
+        session.current_step = dbSession.currentStep as any;
+        session.answers = dbSession.answers as any;
+        session.flags = dbSession.flags as any;
+        session.progress = dbSession.progress;
+        console.log('🔍 MESSAGE API: Restored session:', {
+          current_step: session.current_step,
+          progress: session.progress,
+          answers: Object.keys(session.answers)
+        });
+      }
+    }
+    
     // Process message through LangGraph (handles session creation if needed)
     const result = processIntakeMessage(sessionId, userText);
     
     // Update the database record with the latest session state
-    const session = getSession(sessionId);
-    if (session) {
+    const updatedSession = getSession(sessionId);
+    if (updatedSession) {
       // First, try to find existing intake session to preserve reservationId
       const existingSession = await prisma.intakeSession.findUnique({
         where: { sessionId: sessionId }
@@ -37,31 +62,31 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
       const intakeSession = await prisma.intakeSession.upsert({
         where: { sessionId: sessionId },
         update: {
-          currentStep: session.current_step,
-          answers: session.answers,
-          flags: session.flags as any,
-          progress: session.progress,
+          currentStep: updatedSession.current_step,
+          answers: updatedSession.answers,
+          flags: updatedSession.flags as any,
+          progress: updatedSession.progress,
           // Preserve existing reservationId if it exists
           reservationId: existingSession?.reservationId || null
         },
         create: {
           sessionId: sessionId,
-          currentStep: session.current_step,
-          answers: session.answers,
-          flags: session.flags as any,
-          progress: session.progress,
+          currentStep: updatedSession.current_step,
+          answers: updatedSession.answers,
+          flags: updatedSession.flags as any,
+          progress: updatedSession.progress,
           reservationId: null // Will be set when starting intake with reservationId
         }
       });
 
       // If the intake is completed (progress = 100), link it to the reservation
       console.log('🔍 MESSAGE API: Checking completion:', {
-        progress: session.progress,
+        progress: updatedSession.progress,
         reservationId: intakeSession.reservationId,
         intakeSessionId: intakeSession.id
       });
       
-      if (session.progress === 100 && intakeSession.reservationId) {
+      if (updatedSession.progress === 100 && intakeSession.reservationId) {
         console.log('🔍 MESSAGE API: Linking completed intake to reservation:', intakeSession.reservationId);
         await prisma.reservation.update({
           where: { id: intakeSession.reservationId },
