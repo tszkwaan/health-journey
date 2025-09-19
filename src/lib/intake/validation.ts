@@ -52,6 +52,22 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
             dob = part;
             break;
           }
+          // Check for YYYY MMDD format within comma-separated parts
+          const yearMatch = part.match(/^(\d{4})\s+(\d{2})(\d{2})$/);
+          if (yearMatch) {
+            const year = yearMatch[1];
+            const month = yearMatch[2];
+            const day = yearMatch[3];
+            
+            // Validate month and day ranges
+            const monthNum = parseInt(month);
+            const dayNum = parseInt(day);
+            
+            if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+              dob = `${year}-${month}-${day}`;
+              break;
+            }
+          }
         }
       }
       // Look for phone pattern in any part (more specific pattern)
@@ -59,6 +75,10 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
         for (const part of parts) {
           // Skip if it's already identified as a date
           if (/\d{4}-\d{1,2}-\d{1,2}/.test(part) || /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(part)) {
+            continue;
+          }
+          // Skip if it matches YYYY MMDD pattern
+          if (/^\d{4}\s+\d{4}$/.test(part)) {
             continue;
           }
           if (/\d{3}[-\.\s]?\d{3}[-\.\s]?\d{4}/.test(part) || /\d{7,}/.test(part.replace(/\D/g, ''))) {
@@ -94,6 +114,30 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
       }
     }
     
+    // Check for YYYY MMDD format like "1994 1010" (year followed by month+day)
+    if (!dob) {
+      for (let i = 0; i < spaceParts.length - 1; i++) {
+        const yearMatch = spaceParts[i].match(/^(\d{4})$/);
+        const monthDayMatch = spaceParts[i + 1].match(/^(\d{2})(\d{2})$/);
+        
+        if (yearMatch && monthDayMatch) {
+          const year = yearMatch[1];
+          const month = monthDayMatch[1];
+          const day = monthDayMatch[2];
+          
+          // Validate month and day ranges
+          const monthNum = parseInt(month);
+          const dayNum = parseInt(day);
+          
+          if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+            dob = `${year}-${month}-${day}`;
+            dateIndex = i;
+            break;
+          }
+        }
+      }
+    }
+
     // Check for written date patterns like "1994 October 10th" or "October 10th 1994"
     if (!dob) {
       for (let i = 0; i < spaceParts.length - 2; i++) {
