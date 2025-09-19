@@ -32,7 +32,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${notoSans.variable} antialiased`}>
+      <body 
+        className={`${geistSans.variable} ${geistMono.variable} ${notoSans.variable} antialiased`}
+        suppressHydrationWarning={true}
+      >
         <Providers>
           <Navbar />
           {children}
