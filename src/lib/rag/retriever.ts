@@ -13,6 +13,17 @@ export class RAGRetriever {
       chunk.metadata.reservationId === reservationId
     );
 
+    console.log(`🔍 Query: "${query}"`);
+    console.log(`📊 Found ${reservationChunks.length} chunks for reservation ${reservationId}`);
+    
+    // Debug: Log all chunks to see what we have
+    reservationChunks.forEach((chunk, index) => {
+      console.log(`  Chunk ${index + 1}: ${chunk.metadata.source} - ${chunk.metadata.section}`);
+      if (chunk.metadata.section === 'family_history') {
+        console.log(`    🏠 FAMILY HISTORY CHUNK: ${chunk.content}`);
+      }
+    });
+
     if (reservationChunks.length === 0) {
       return [];
     }
@@ -29,17 +40,29 @@ export class RAGRetriever {
     // Add keyword-based matching as fallback
     const keywordMatches = this.findKeywordMatches(query, reservationChunks);
     
+    console.log(`🎯 Keyword matches: ${keywordMatches.length}`);
+    keywordMatches.forEach((match, index) => {
+      console.log(`  Keyword match ${index + 1}: ${match.chunk.metadata.section} (score: ${match.score.toFixed(3)})`);
+    });
+    
     // Combine similarity and keyword matches
     const allMatches = [...scoredChunks, ...keywordMatches];
     
     // Remove duplicates and sort by score
     const uniqueMatches = this.removeDuplicateChunks(allMatches);
     
+    console.log(`🔄 After deduplication: ${uniqueMatches.length} matches`);
+    
     // Sort by score and return top results
     const topChunks = uniqueMatches
       .sort((a, b) => b.score - a.score)
       .slice(0, 5) // Return top 5 most relevant chunks
       .map(item => item.chunk);
+
+    console.log(`✅ Returning ${topChunks.length} top chunks:`);
+    topChunks.forEach((chunk, index) => {
+      console.log(`  ${index + 1}. ${chunk.metadata.source} - ${chunk.metadata.section}`);
+    });
 
     return topChunks;
   }

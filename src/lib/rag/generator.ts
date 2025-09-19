@@ -115,9 +115,7 @@ Your role is to help doctors quickly access and understand patient information, 
       }
 
       const result = await response.json();
-      const llmResponse = result.response || 'No response generated';
-      console.log('LLM Response:', llmResponse);
-      return llmResponse;
+      return result.response || 'No response generated';
     } catch (error) {
       console.error('Error calling Ollama:', error);
       throw error;

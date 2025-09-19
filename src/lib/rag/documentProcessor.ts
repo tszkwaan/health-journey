@@ -105,7 +105,10 @@ export class DocumentProcessor {
     // Process family history
     if (medicalBackground.familyHistory?.length > 0) {
       const content = medicalBackground.familyHistory.join(', ');
+      console.log(`🏠 Creating family history chunk: "${content}"`);
       chunks.push(this.createChunk('family_history', content, 'medical_history', reservationId, patientId));
+    } else {
+      console.log(`❌ No family history found in medical background:`, medicalBackground.familyHistory);
     }
 
     if (medicalBackground.otherFamilyHistory) {
