@@ -193,7 +193,7 @@ export function processIntakeMessage(sessionId: string, userText: string): {
       sessionId,
       current_step: session.current_step,
       progress: session.progress,
-      utterance: generateUtterance(session.current_step, 'error') + ` ${validation.hint}`,
+      utterance: validation.hint,
       requires_correction: true,
       review_snapshot: null
     };

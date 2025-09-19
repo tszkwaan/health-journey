@@ -70,35 +70,48 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
     }
   }
 
-  // Pattern 4: Space-separated "elena 1994-10-10 87709010"
+  // Pattern 4: Space-separated "elena chong 1994-10-10 87709010"
   if (!full_name || !dob || !phone) {
     const spaceParts = trimmed.split(/\s+/).filter(p => p.trim());
-    if (spaceParts.length >= 3) {
-      // First part is likely name
-      if (!full_name && /^[a-zA-Z\s]+$/.test(spaceParts[0])) {
-        full_name = spaceParts[0];
-      }
-      // Look for date pattern in any part (YYYY-MM-DD or MM/DD/YYYY)
-      if (!dob) {
-        for (const part of spaceParts) {
-          if (/\d{4}-\d{1,2}-\d{1,2}/.test(part) || /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(part)) {
-            dob = part;
-            break;
-          }
+    
+    // Find date and phone patterns first
+    let dateIndex = -1;
+    let phoneIndex = -1;
+    
+    for (let i = 0; i < spaceParts.length; i++) {
+      const part = spaceParts[i];
+      if (/\d{4}-\d{1,2}-\d{1,2}/.test(part) || /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(part)) {
+        if (dateIndex === -1) {
+          dob = part;
+          dateIndex = i;
+        }
+      } else if (/\d{7,}/.test(part.replace(/\D/g, ''))) {
+        if (phoneIndex === -1) {
+          phone = part;
+          phoneIndex = i;
         }
       }
-      // Look for phone pattern in any part (7+ digits)
-      if (!phone) {
-        for (const part of spaceParts) {
-          // Skip if it's already identified as a date
-          if (/\d{4}-\d{1,2}-\d{1,2}/.test(part) || /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(part)) {
-            continue;
-          }
-          if (/\d{7,}/.test(part)) {
-            phone = part;
-            break;
-          }
+    }
+    
+    // If we found both date and phone, extract name from remaining parts
+    if (dateIndex !== -1 && phoneIndex !== -1) {
+      // Name is everything before the date
+      const nameParts = spaceParts.slice(0, dateIndex);
+      if (nameParts.length > 0) {
+        full_name = nameParts.join(' ');
+      }
+    } else if (spaceParts.length >= 3) {
+      // Fallback: try to identify name as first part(s) that are all letters
+      let nameEndIndex = 0;
+      for (let i = 0; i < spaceParts.length; i++) {
+        if (/^[a-zA-Z]+$/.test(spaceParts[i])) {
+          nameEndIndex = i + 1;
+        } else {
+          break;
         }
+      }
+      if (nameEndIndex > 0) {
+        full_name = spaceParts.slice(0, nameEndIndex).join(' ');
       }
     }
   }
@@ -106,15 +119,15 @@ export function validatePatientInfo(input: string): ValidationResult<{full_name:
 
   // Validation checks
   if (!full_name) {
-    return { ok: false, errorCode: "MISSING_NAME", hint: "I need your full name. Please include it in your response." };
+    return { ok: false, errorCode: "MISSING_NAME", hint: "Sorry, I didn't get enough information. To proceed with your registration, I need your full name, date of birth, and phone number. Could you please provide all three pieces of information together?" };
   }
 
   if (!dob) {
-    return { ok: false, errorCode: "MISSING_DOB", hint: "I need your date of birth. Please include it in your response." };
+    return { ok: false, errorCode: "MISSING_DOB", hint: "Sorry, I didn't get enough information. To proceed with your registration, I need your full name, date of birth, and phone number. Could you please provide all three pieces of information together?" };
   }
 
   if (!phone) {
-    return { ok: false, errorCode: "MISSING_PHONE", hint: "I need your phone number. Please include it in your response." };
+    return { ok: false, errorCode: "MISSING_PHONE", hint: "Sorry, I didn't get enough information. To proceed with your registration, I need your full name, date of birth, and phone number. Could you please provide all three pieces of information together?" };
   }
 
   // Validate name (letters and spaces only)
