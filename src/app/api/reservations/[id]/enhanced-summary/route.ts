@@ -313,7 +313,7 @@ function prepareSourceData(medicalBackground: any, intakeAnswers: any, patient: 
 }
 
 function createEnhancedSummaryPrompt(sources: any[]) {
-  let prompt = `You are a medical AI assistant helping doctors prepare for patient consultations. Generate a comprehensive summary based on the provided patient data. Use citation numbers [1], [2], etc. to reference specific sources.
+  let prompt = `You are a medical AI assistant helping doctors prepare for patient consultations. Generate a concise, point-form summary based on the provided patient data. Use citation numbers [1], [2], etc. to reference specific sources.
 
 PATIENT DATA SOURCES:
 `;
@@ -322,42 +322,49 @@ PATIENT DATA SOURCES:
     prompt += `\n[${index + 1}] ${source.section}: ${source.content} (Source: ${source.source})`;
   });
 
-  prompt += `\n\nPlease generate a structured summary with the following sections:
+  prompt += `\n\nPlease generate a structured summary with the following sections in BULLET POINT FORMAT:
 
 1. CURRENT SITUATION
-   - Summarize the patient's current condition and presenting symptoms
-   - Include timing, severity, and any relevant details
-   - Use citations [1], [2], etc. to reference specific sources
+   Format as bullet points with sub-bullets:
+   • **Symptoms:** [List key symptoms with timing and severity] [citation]
+   • **Onset:** [When symptoms began] [citation]
+   • **Timing:** [When symptoms occur] [citation]
+   • **Severity:** [Level of impact] [citation]
+   • **First Reported:** [When/where initially reported] [citation]
 
 2. MAIN CONCERNS
-   - List the primary concerns and symptoms
-   - Highlight any urgent or concerning symptoms
-   - Use citations to support each concern
+   Format as bullet points:
+   • **Primary Health Concerns:** [Main concerns] [citation]
+   • **Allergic Reactions:** [Any allergies or reactions] [citation]
+   • **Urgent/Red-Flag Symptoms:** [Any concerning symptoms] [citation]
 
 3. MEDICAL BACKGROUND SUMMARY
-   - Summarize relevant past medical history
-   - Include current medications and their purposes
-   - Mention allergies and family history
-   - Use citations to reference medical history sources
+   Format as bullet points:
+   • **Past Medical Conditions:** [Relevant medical history] [citation]
+   • **Current Medications:** [List medications and purposes] [citation]
+   • **Allergies:** [Known allergies and reactions] [citation]
+   • **Family Medical History:** [Relevant family history] [citation]
 
-4. AI DIAGNOSIS
-   - Analyze possible reasons for the current symptoms
-   - Consider differential diagnoses based on the information provided
-   - Be cautious and note limitations of the available information
-   - Use citations to support diagnostic reasoning
+4. AI DIAGNOSIS ANALYSIS
+   Format as bullet points:
+   • **Possible Differential Diagnoses:** [List potential conditions] [citation]
+   • **Disclaimer:** [Note limitations and need for further investigation] [citation]
 
-5. AI SUGGESTIONS
-   - Suggest follow-up questions for the doctor to ask
-   - Recommend next steps for the consultation
-   - Suggest any additional tests or examinations that might be helpful
-   - Use citations to support recommendations
+5. AI SUGGESTIONS FOR CONSULTATION
+   Format as bullet points:
+   • **Suggested Follow-Up Questions:** [List specific questions] [citation]
+   • **Recommended Tests/Examinations:** [Suggest specific tests] [citation]
+   • **Safety Notes/Disclaimer:** [Important safety considerations] [citation]
 
-IMPORTANT:
-- Always use citation numbers [1], [2], etc. when referencing specific information
-- Be factual and avoid speculation beyond what the data supports
-- If information is missing, clearly state what is unknown
-- Focus on actionable insights for the doctor
-- Keep each section concise but comprehensive
+IMPORTANT FORMATTING RULES:
+- Use bullet points (•) for main items
+- Use sub-bullets (◦) for details under main items
+- Use **bold** for section labels within each area
+- Always include citation numbers [1], [2], etc. for each piece of information
+- Keep each point concise and actionable
+- Use medical terminology appropriately
+- Be specific and avoid vague statements
+- If information is missing, state "Not provided" or "Unknown"
 
 Generate the summary now:`;
 

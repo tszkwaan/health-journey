@@ -177,6 +177,45 @@ export async function POST(request: NextRequest) {
       // Don't fail the main request if summary generation fails
     }
 
+    // Also trigger enhanced summary generation for any associated reservations
+    try {
+      console.log('Triggering enhanced summary generation for associated reservations...');
+      
+      // Find reservations for this patient that have completed intake
+      const reservations = await prisma.reservation.findMany({
+        where: {
+          patientId: session.user.id,
+          intakeSession: {
+            isNot: null
+          }
+        },
+        select: { id: true }
+      });
+
+      // Trigger enhanced summary generation for each reservation
+      for (const reservation of reservations) {
+        try {
+          const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/reservations/${reservation.id}/enhanced-summary`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response.ok) {
+            console.log(`Enhanced summary generated for reservation ${reservation.id}`);
+          } else {
+            console.error(`Failed to generate enhanced summary for reservation ${reservation.id}:`, response.statusText);
+          }
+        } catch (error) {
+          console.error(`Error generating enhanced summary for reservation ${reservation.id}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('Error triggering enhanced summary generation:', error);
+      // Don't fail the main request if enhanced summary generation fails
+    }
+
     return NextResponse.json(medicalBackground);
 
   } catch (error) {

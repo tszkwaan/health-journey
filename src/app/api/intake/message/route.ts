@@ -93,6 +93,25 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
           data: { intakeSessionId: intakeSession.id }
         });
         console.log('🔍 MESSAGE API: Successfully linked intake to reservation');
+
+        // Trigger enhanced summary generation after intake completion
+        try {
+          console.log('🔍 MESSAGE API: Triggering enhanced summary generation...');
+          const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/reservations/${intakeSession.reservationId}/enhanced-summary`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response.ok) {
+            console.log('🔍 MESSAGE API: Enhanced summary generated successfully');
+          } else {
+            console.error('🔍 MESSAGE API: Failed to generate enhanced summary:', response.statusText);
+          }
+        } catch (error) {
+          console.error('🔍 MESSAGE API: Error generating enhanced summary:', error);
+        }
       }
     }
     
