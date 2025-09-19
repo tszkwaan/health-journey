@@ -286,16 +286,56 @@ export default function ReservationDetailPage() {
                           <div className="bg-gray-50 rounded-lg p-4">
                             {reservation.intakeSession.answers ? (
                               <div className="space-y-3">
-                                {Object.entries(reservation.intakeSession.answers).map(([key, value]) => (
-                                  <div key={key}>
-                                    <span className="text-sm font-medium text-gray-700 capitalize">
-                                      {key.replace(/_/g, ' ')}:
-                                    </span>
-                                    <span className="text-sm text-gray-600 ml-2">
-                                      {typeof value === 'string' ? value : JSON.stringify(value)}
-                                    </span>
-                                  </div>
-                                ))}
+                                {Object.entries(reservation.intakeSession.answers).map(([key, value]) => {
+                                  // Special handling for patient_info object
+                                  if (key === 'patient_info' && typeof value === 'object' && value !== null) {
+                                    const patientInfo = value as { full_name?: string; dob?: string; phone?: string };
+                                    return (
+                                      <div key={key}>
+                                        <span className="text-sm font-medium text-gray-700 capitalize">
+                                          {key.replace(/_/g, ' ')}:
+                                        </span>
+                                        <div className="ml-2 mt-1 space-y-1">
+                                          <div className="text-sm text-gray-600">
+                                            <span className="font-medium">Name:</span> {patientInfo.full_name || 'Not provided'}
+                                          </div>
+                                          <div className="text-sm text-gray-600">
+                                            <span className="font-medium">Date of Birth:</span> {patientInfo.dob || 'Not provided'}
+                                          </div>
+                                          <div className="text-sm text-gray-600">
+                                            <span className="font-medium">Phone:</span> {patientInfo.phone || 'Not provided'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  // Handle arrays (like allergies, medical_conditions, etc.)
+                                  if (Array.isArray(value)) {
+                                    return (
+                                      <div key={key}>
+                                        <span className="text-sm font-medium text-gray-700 capitalize">
+                                          {key.replace(/_/g, ' ')}:
+                                        </span>
+                                        <span className="text-sm text-gray-600 ml-2">
+                                          {value.length > 0 ? value.join(', ') : 'None'}
+                                        </span>
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  // Handle regular string values
+                                  return (
+                                    <div key={key}>
+                                      <span className="text-sm font-medium text-gray-700 capitalize">
+                                        {key.replace(/_/g, ' ')}:
+                                      </span>
+                                      <span className="text-sm text-gray-600 ml-2">
+                                        {typeof value === 'string' ? value : JSON.stringify(value)}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             ) : (
                               <p className="text-sm text-gray-600">No intake data available</p>

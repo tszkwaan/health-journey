@@ -24,17 +24,11 @@ export async function GET(request: NextRequest) {
     }
 
     const doctorId = user.doctorProfile.id;
-    // Get today's date as string for comparison
+    // Get today's date for filtering future appointments
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    const nextWeekStr = nextWeek.toISOString().split('T')[0];
 
-    // Fetch appointments with patient and time slot details
+    // Fetch all future appointments with patient and time slot details
     const appointments = await prisma.reservation.findMany({
       where: {
         doctorId: doctorId,
@@ -77,27 +71,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Categorize appointments by date
-    const appointmentsByDate = {
-      today: [] as any[],
-      tomorrow: [] as any[],
-      nextWeek: [] as any[]
-    };
-
-    appointments.forEach(appointment => {
-      const appointmentDate = new Date(appointment.timeSlot.date);
-      const appointmentDateStr = appointmentDate.toISOString().split('T')[0];
-
-      if (appointmentDateStr === todayStr) {
-        appointmentsByDate.today.push(appointment);
-      } else if (appointmentDateStr === tomorrowStr) {
-        appointmentsByDate.tomorrow.push(appointment);
-      } else if (appointmentDateStr >= tomorrowStr && appointmentDateStr < nextWeekStr) {
-        appointmentsByDate.nextWeek.push(appointment);
-      }
-    });
-
-    return NextResponse.json(appointmentsByDate);
+    return NextResponse.json(appointments);
 
   } catch (error) {
     console.error('Error fetching doctor appointments:', error);

@@ -29,16 +29,12 @@ interface Appointment {
   };
 }
 
-interface AppointmentsByDate {
-  today: Appointment[];
-  tomorrow: Appointment[];
-  nextWeek: Appointment[];
-}
+// Remove the AppointmentsByDate interface as we now get a simple array
 
 export default function DoctorAppointmentsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [appointments, setAppointments] = useState<AppointmentsByDate | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Redirect if not authenticated or not a doctor
@@ -62,20 +58,12 @@ export default function DoctorAppointmentsPage() {
           } else {
             console.error('Failed to fetch appointments:', response.statusText);
             // Set empty appointments on error
-            setAppointments({
-              today: [],
-              tomorrow: [],
-              nextWeek: []
-            });
+            setAppointments([]);
           }
         } catch (error) {
           console.error('Error fetching appointments:', error);
           // Set empty appointments on error
-          setAppointments({
-            today: [],
-            tomorrow: [],
-            nextWeek: []
-          });
+          setAppointments([]);
         } finally {
           setLoading(false);
         }
@@ -122,7 +110,8 @@ export default function DoctorAppointmentsPage() {
       return date.toLocaleDateString('en-US', { 
         weekday: 'long', 
         month: 'short', 
-        day: 'numeric' 
+        day: 'numeric',
+        year: 'numeric'
       });
     }
   };
@@ -171,16 +160,30 @@ export default function DoctorAppointmentsPage() {
 
         {/* Appointments Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
-
-          {/* Today's Appointments */}
-          {appointments?.today && appointments.today.length > 0 && (
-            <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                Today
+          {/* All Future Appointments */}
+          {appointments && appointments.length > 0 && (
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-6" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                Upcoming Appointments
               </h3>
               <div className="space-y-4">
-                {appointments.today.map((appointment) => {
+                {appointments.map((appointment) => {
                   const intakeStatus = getIntakeStatus(appointment);
+                  const appointmentDate = new Date(appointment.timeSlot.date);
+                  const today = new Date();
+                  const tomorrow = new Date(today);
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  
+                  // Determine avatar color based on date
+                  let avatarClass = "w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold";
+                  if (appointmentDate.toDateString() === today.toDateString()) {
+                    avatarClass += " bg-gradient-to-br from-blue-400 to-purple-400";
+                  } else if (appointmentDate.toDateString() === tomorrow.toDateString()) {
+                    avatarClass += " bg-gradient-to-br from-green-400 to-blue-400";
+                  } else {
+                    avatarClass += " bg-gradient-to-br from-purple-400 to-pink-400";
+                  }
+                  
                   return (
                     <Link 
                       key={appointment.id} 
@@ -188,111 +191,25 @@ export default function DoctorAppointmentsPage() {
                       className="block"
                     >
                       <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-semibold">
-                          {appointment.patient.name.charAt(0)}
+                        <div className="flex items-center gap-4">
+                          <div className={avatarClass}>
+                            {appointment.patient.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                              {appointment.patient.name}
+                            </p>
+                            <p className="text-gray-600 text-sm" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                              {formatDate(appointment.timeSlot.date)}, {formatTime(appointment.timeSlot.startTime)} - {formatTime(appointment.timeSlot.endTime)}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                            {appointment.patient.name}
-                          </p>
-                          <p className="text-gray-600 text-sm" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                            {formatTime(appointment.timeSlot.startTime)} - {formatTime(appointment.timeSlot.endTime)}
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${intakeStatus === 'completed' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                          <span className={`text-sm font-medium ${getIntakeStatusColor(intakeStatus)}`} style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                            {getIntakeStatusText(intakeStatus)}
+                          </span>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${intakeStatus === 'completed' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                        <span className={`text-sm font-medium ${getIntakeStatusColor(intakeStatus)}`} style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                          {getIntakeStatusText(intakeStatus)}
-                        </span>
-                      </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Tomorrow's Appointments */}
-          {appointments?.tomorrow && appointments.tomorrow.length > 0 && (
-            <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                Tomorrow
-              </h3>
-              <div className="space-y-4">
-                {appointments.tomorrow.map((appointment) => {
-                  const intakeStatus = getIntakeStatus(appointment);
-                  return (
-                    <Link 
-                      key={appointment.id} 
-                      href={`/doctor/reservations/${appointment.id}`}
-                      className="block"
-                    >
-                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-400 flex items-center justify-center text-white font-semibold">
-                          {appointment.patient.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                            {appointment.patient.name}
-                          </p>
-                          <p className="text-gray-600 text-sm" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                            {formatTime(appointment.timeSlot.startTime)} - {formatTime(appointment.timeSlot.endTime)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${intakeStatus === 'completed' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                        <span className={`text-sm font-medium ${getIntakeStatusColor(intakeStatus)}`} style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                          {getIntakeStatusText(intakeStatus)}
-                        </span>
-                      </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Next Week's Appointments */}
-          {appointments?.nextWeek && appointments.nextWeek.length > 0 && (
-            <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                Next Week
-              </h3>
-              <div className="space-y-4">
-                {appointments.nextWeek.map((appointment) => {
-                  const intakeStatus = getIntakeStatus(appointment);
-                  return (
-                    <Link 
-                      key={appointment.id} 
-                      href={`/doctor/reservations/${appointment.id}`}
-                      className="block"
-                    >
-                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-semibold">
-                          {appointment.patient.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                            {appointment.patient.name}
-                          </p>
-                          <p className="text-gray-600 text-sm" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                            {formatDate(appointment.timeSlot.date)}, {formatTime(appointment.timeSlot.startTime)} - {formatTime(appointment.timeSlot.endTime)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${intakeStatus === 'completed' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                        <span className={`text-sm font-medium ${getIntakeStatusColor(intakeStatus)}`} style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                          {getIntakeStatusText(intakeStatus)}
-                        </span>
-                      </div>
                       </div>
                     </Link>
                   );
@@ -302,7 +219,7 @@ export default function DoctorAppointmentsPage() {
           )}
 
           {/* No appointments message */}
-          {appointments && appointments.today.length === 0 && appointments.tomorrow.length === 0 && appointments.nextWeek.length === 0 && (
+          {appointments && appointments.length === 0 && (
             <div className="text-center py-12">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -313,7 +230,7 @@ export default function DoctorAppointmentsPage() {
                 No upcoming appointments
               </h3>
               <p className="text-gray-600" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                You don't have any appointments scheduled for the next week.
+                You don't have any appointments scheduled.
               </p>
             </div>
           )}
