@@ -5,22 +5,17 @@ export default function PatientRegisterPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [consent, setConsent] = useState(false)
+  const [voiceAIConsent, setVoiceAIConsent] = useState(false)
   const [message, setMessage] = useState('')
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setMessage('')
     
-    if (!consent) {
-      setMessage('You must agree to the consent terms to register.')
-      return
-    }
-    
     const res = await fetch('/api/register/patient', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, voiceAIConsent }),
     })
     if (res.ok) setMessage('Registered successfully. You can now login.')
     else setMessage('Registration failed.')
@@ -59,50 +54,41 @@ export default function PatientRegisterPage() {
             style={{ fontFamily: 'var(--font-noto-sans)' }}
           />
           
-          {/* Consent Section */}
+          {/* VoiceAI Consent Section */}
           <div className="space-y-4">
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
               <p className="text-sm text-gray-700 leading-relaxed" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-              I consent to the use of VoiceAI throughout the pre-care and during-care process, including intake and consultation processes for recording, transcription, and summarization purposes. I understand my data will be handled securely and that I can revoke my consent at any time.
+                I consent to the use of VoiceAI throughout the pre-care and during-care process, including intake and consultation processes for recording, transcription, and summarization purposes. I understand my data will be handled securely and that I can revoke my consent at any time.
               </p>
             </div>
             
             <div className="flex items-start space-x-3">
               <input
                 type="checkbox"
-                id="consent"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
+                id="voiceAIConsent"
+                checked={voiceAIConsent}
+                onChange={(e) => setVoiceAIConsent(e.target.checked)}
                 className="mt-1 w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
               />
               <label 
-                htmlFor="consent" 
+                htmlFor="voiceAIConsent" 
                 className="text-sm text-gray-700 cursor-pointer" 
                 style={{ fontFamily: 'var(--font-noto-sans)' }}
               >
-                I Agree
+                Enable VoiceAI (Optional)
               </label>
             </div>
           </div>
           
           {message && (
-            <p className={`text-sm text-center p-3 rounded-lg ${
-              message.includes('must agree') 
-                ? 'bg-red-50 text-red-700 border border-red-200' 
-                : 'bg-purple-50 text-purple-700'
-            }`} style={{ fontFamily: 'var(--font-noto-sans)' }}>
+            <p className="text-sm text-center p-3 rounded-lg bg-purple-50 text-purple-700" style={{ fontFamily: 'var(--font-noto-sans)' }}>
               {message}
             </p>
           )}
           
           <button 
-            className={`w-full p-4 rounded-2xl font-semibold transition-all duration-200 shadow-lg ${
-              consent 
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700' 
-                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-            }`}
+            className="w-full p-4 rounded-2xl font-semibold transition-all duration-200 shadow-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700"
             type="submit"
-            disabled={!consent}
             style={{ fontFamily: 'var(--font-noto-sans)' }}
           >
             Register

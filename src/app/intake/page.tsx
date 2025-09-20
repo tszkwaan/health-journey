@@ -23,11 +23,28 @@ export default function IntakePage() {
   const [liveTranscript, setLiveTranscript] = useState<string>("");
   const [finalTranscripts, setFinalTranscripts] = useState<string[]>([]);
   const [combinedTranscript, setCombinedTranscript] = useState<string>("");
+  const [voiceAIConsent, setVoiceAIConsent] = useState<boolean>(false);
   const clientRef = useRef<STTWebSocketClient | null>(null);
   const recogRef = useRef<SpeechRecognition | null>(null);
   const lastPartialRef = useRef<string>("");
   const lastFinalRef = useRef<string>("");
   const finalsRef = useRef<string[]>([]);
+
+  // Fetch user's VoiceAI consent
+  useEffect(() => {
+    async function fetchVoiceAIConsent() {
+      try {
+        const res = await fetch('/api/user/settings')
+        if (res.ok) {
+          const data = await res.json()
+          setVoiceAIConsent(data.voiceAIConsent || false)
+        }
+      } catch (error) {
+        console.error('Error fetching VoiceAI consent:', error)
+      }
+    }
+    fetchVoiceAIConsent()
+  }, [])
 
   // Initialize session on component mount
   useEffect(() => {
@@ -364,11 +381,15 @@ export default function IntakePage() {
                 <div className="flex items-center gap-4">
                   <button
                     onClick={isListening ? stopVoiceInput : startVoiceInput}
-                    disabled={isLoading}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold transition-all duration-200 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      isListening 
-                        ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                    disabled={isLoading || !voiceAIConsent}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold transition-all duration-200 shadow-sm ${
+                      !voiceAIConsent
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : isLoading
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : isListening 
+                        ? 'bg-red-100 text-red-700 hover:bg-red-200 cursor-pointer' 
+                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200 cursor-pointer'
                     }`}
                     style={{ fontFamily: 'var(--font-noto-sans)' }}
                   >
@@ -378,10 +399,16 @@ export default function IntakePage() {
                     {isListening ? 'Stop Recording' : 'Start Voice Input'}
                   </button>
                   
-                  {/* Voice consent disclaimer */}
-                  <p className="text-xs text-gray-500 max-w-xs" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                    By starting voice input, you confirm your consent to VoiceAI for pre-care and during-care recording and summarization.
-                  </p>
+                  {/* Voice consent message */}
+                  {voiceAIConsent ? (
+                    <p className="text-xs text-gray-500 max-w-xs" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                      By starting voice input, you confirm your consent to VoiceAI for pre-care and during-care recording and summarization.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-400 max-w-xs" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                      Voice input is disabled. Enable VoiceAI in Settings to use voice input.
+                    </p>
+                  )}
                 </div>
               </div>
             )}

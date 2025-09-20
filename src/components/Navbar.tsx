@@ -102,6 +102,14 @@ export default function Navbar() {
                         </Link>
                       </>
                     )}
+                    <Link
+                      href="/settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
+                      style={{ fontFamily: 'var(--font-noto-sans)' }}
+                      onClick={() => setShowDropdown(false)}
+                    >
+                      Settings
+                    </Link>
                     <button
                       onClick={() => {
                         setShowDropdown(false);

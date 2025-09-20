@@ -30,6 +30,9 @@ model User {
   passwordHash String
   role         Role
 
+  // VoiceAI consent
+  voiceAIConsent Boolean @default(false)
+
   // Relations
   reservations Reservation[]
   doctorProfile Doctor?
