@@ -444,9 +444,9 @@ export default function ReservationDetailPage() {
 
       {/* Main Content */}
       <div className="w-[80%] mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <div className={`grid gap-8 ${activeTab === 'consultation' ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-5'}`}>
           {/* Left Column - Reservation Details */}
-          <div className="lg:col-span-2">
+          <div className={activeTab === 'consultation' ? 'col-span-1' : 'lg:col-span-2'}>
             {/* Tabs */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
               <div className="border-b border-gray-200">
@@ -917,105 +917,107 @@ export default function ReservationDetailPage() {
           </div>
 
           {/* Right Column - Q&A Chatbot */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-2xl shadow-lg border border-purple-100 p-8 h-[80vh] flex flex-col">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-gray-900" style={{ fontFamily: 'var(--font-noto-sans)' }}>Q&A Chatbot</h3>
-                <div className="flex items-center space-x-2">
-                  <label className="flex items-center text-sm text-gray-600" style={{ fontFamily: 'var(--font-noto-sans)' }}>
-                    <input
-                      type="checkbox"
-                      checked={includeExternal}
-                      onChange={(e) => setIncludeExternal(e.target.checked)}
-                      className="mr-2 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                    />
-                    Include PubMed
-                  </label>
-                </div>
-              </div>
-              <p className="text-base text-gray-600 mb-6" style={{ fontFamily: 'var(--font-noto-sans)' }}>Ask questions about the patient. Toggle PubMed to include medical literature search.</p>
-              
-              {/* Chat History */}
-              <div 
-                ref={setChatContainerRef}
-                className="flex-1 overflow-y-auto mb-6 border-2 border-purple-200 rounded-2xl p-6 bg-gray-50"
-              >
-                {chatHistory.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500 text-2xl" style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}>
-                      Start a conversation by asking a question about the patient.
-                    </p>
+          {activeTab !== 'consultation' && (
+            <div className="lg:col-span-3">
+              <div className="bg-white rounded-2xl shadow-lg border border-purple-100 p-8 h-[80vh] flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold text-gray-900" style={{ fontFamily: 'var(--font-noto-sans)' }}>Q&A Chatbot</h3>
+                  <div className="flex items-center space-x-2">
+                    <label className="flex items-center text-sm text-gray-600" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                      <input
+                        type="checkbox"
+                        checked={includeExternal}
+                        onChange={(e) => setIncludeExternal(e.target.checked)}
+                        className="mr-2 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      Include PubMed
+                    </label>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {chatHistory.map((message, index) => (
-                      <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-md px-4 py-3 rounded-2xl text-base ${
-                          message.role === 'user' 
-                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' 
-                            : 'bg-white text-gray-900 border-2 border-purple-200'
-                        }`} style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}>
-                          <div className="leading-relaxed">{message.content}</div>
-                          {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-                            <div className="mt-3 text-sm text-gray-500">
-                              <div className="font-medium mb-2">Sources:</div>
-                              {message.sources.slice(0, 3).map((source, idx) => (
-                                <div key={idx} className="truncate">
-                                  • {source.section} ({source.source})
-                                </div>
-                              ))}
-                              {message.sources.length > 3 && (
-                                <div className="text-gray-400">+{message.sources.length - 3} more</div>
-                              )}
-                            </div>
-                          )}
-                          {message.role === 'assistant' && message.confidence && (
-                            <div className="mt-2 text-sm text-gray-400">
-                              Confidence: {Math.round(message.confidence * 100)}%
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {/* Loading indicator */}
-                    {isLoadingChat && (
-                      <div className="flex justify-start">
-                        <div className="max-w-md px-4 py-3 rounded-2xl text-base bg-white text-gray-900 border-2 border-purple-200">
-                          <div className="flex items-center space-x-3">
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
-                            <span style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}>Thinking...</span>
+                </div>
+                <p className="text-base text-gray-600 mb-6" style={{ fontFamily: 'var(--font-noto-sans)' }}>Ask questions about the patient. Toggle PubMed to include medical literature search.</p>
+                
+                {/* Chat History */}
+                <div 
+                  ref={setChatContainerRef}
+                  className="flex-1 overflow-y-auto mb-6 border-2 border-purple-200 rounded-2xl p-6 bg-gray-50"
+                >
+                  {chatHistory.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500 text-2xl" style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}>
+                        Start a conversation by asking a question about the patient.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {chatHistory.map((message, index) => (
+                        <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-md px-4 py-3 rounded-2xl text-base ${
+                            message.role === 'user' 
+                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' 
+                              : 'bg-white text-gray-900 border-2 border-purple-200'
+                          }`} style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}>
+                            <div className="leading-relaxed">{message.content}</div>
+                            {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                              <div className="mt-3 text-sm text-gray-500">
+                                <div className="font-medium mb-2">Sources:</div>
+                                {message.sources.slice(0, 3).map((source, idx) => (
+                                  <div key={idx} className="truncate">
+                                    • {source.section} ({source.source})
+                                  </div>
+                                ))}
+                                {message.sources.length > 3 && (
+                                  <div className="text-gray-400">+{message.sources.length - 3} more</div>
+                                )}
+                              </div>
+                            )}
+                            {message.role === 'assistant' && message.confidence && (
+                              <div className="mt-2 text-sm text-gray-400">
+                                Confidence: {Math.round(message.confidence * 100)}%
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Chat Input */}
-              <form onSubmit={handleChatSubmit} className="space-y-4">
-                <div className="flex gap-4">
-                  <textarea
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    placeholder="Type your question here..."
-                    className="flex-1 rounded-2xl border-2 border-purple-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 p-4 text-lg placeholder-gray-400 transition-all duration-200 resize-none"
-                    style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}
-                    rows={3}
-                    disabled={isLoadingChat}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!chatMessage.trim() || isLoadingChat}
-                    className="px-8 py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed self-end"
-                    style={{ fontFamily: 'var(--font-noto-sans)' }}
-                  >
-                    {isLoadingChat ? 'Thinking...' : 'Ask'}
-                  </button>
+                      ))}
+                      {/* Loading indicator */}
+                      {isLoadingChat && (
+                        <div className="flex justify-start">
+                          <div className="max-w-md px-4 py-3 rounded-2xl text-base bg-white text-gray-900 border-2 border-purple-200">
+                            <div className="flex items-center space-x-3">
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                              <span style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}>Thinking...</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </form>
+
+                {/* Chat Input */}
+                <form onSubmit={handleChatSubmit} className="space-y-4">
+                  <div className="flex gap-4">
+                    <textarea
+                      value={chatMessage}
+                      onChange={(e) => setChatMessage(e.target.value)}
+                      placeholder="Type your question here..."
+                      className="flex-1 rounded-2xl border-2 border-purple-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 p-4 text-lg placeholder-gray-400 transition-all duration-200 resize-none"
+                      style={{ fontFamily: 'var(--font-noto-sans)', fontWeight: 200 }}
+                      rows={3}
+                      disabled={isLoadingChat}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!chatMessage.trim() || isLoadingChat}
+                      className="px-8 py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed self-end"
+                      style={{ fontFamily: 'var(--font-noto-sans)' }}
+                    >
+                      {isLoadingChat ? 'Thinking...' : 'Ask'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
