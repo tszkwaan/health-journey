@@ -377,6 +377,11 @@ export default function IntakePage() {
                     </svg>
                     {isListening ? 'Stop Recording' : 'Start Voice Input'}
                   </button>
+                  
+                  {/* Voice consent disclaimer */}
+                  <p className="text-xs text-gray-500 max-w-xs" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                    By starting voice input, you confirm your consent to VoiceAI for pre-care and during-care recording and summarization.
+                  </p>
                 </div>
               </div>
             )}
