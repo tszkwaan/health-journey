@@ -97,7 +97,8 @@ export async function POST(
       return NextResponse.json({ error: 'Incomplete data for summary generation' }, { status: 400 });
     }
 
-    console.log('Generating enhanced summary for reservation:', id);
+    // Always generate a fresh summary when requested
+    console.log('Generating fresh enhanced summary for reservation:', id);
     const enhancedSummary = await generateEnhancedSummary(medicalBackground, intakeAnswers, reservation.patient);
 
     console.log('🔍 DATABASE: About to update medical background with ID:', medicalBackground.id);
