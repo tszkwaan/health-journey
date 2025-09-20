@@ -239,16 +239,23 @@ export default function FormsPage() {
     }, {} as Record<string, 'generating'>);
     setGenerationStatus(prev => ({ ...prev, ...initialStatus }));
     
-    // Generate forms in parallel
-    formTypes.forEach(async (formId) => {
+    // Generate forms sequentially
+    let clinicianSummaryData = null;
+    
+    for (const formId of formTypes) {
       try {
+        setGenerationStatus(prev => ({ ...prev, [formId]: 'generating' }));
+        
+        console.log(`Generating ${formId} with clinician summary:`, clinicianSummaryData ? 'Yes' : 'No');
+        
         const response = await fetch('/api/forms/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             formId,
             transcript,
-            reservationId
+            reservationId,
+            clinicianSummary: clinicianSummaryData // Pass clinician summary for patient summary
           })
         });
 
@@ -256,18 +263,16 @@ export default function FormsPage() {
           const data = await response.json();
           // Pre-fill the form data with patient and doctor information
           const prefilledData = prefillFormData(formId, data);
+          
           setGeneratedForms(prev => ({ ...prev, [formId]: prefilledData }));
           setGenerationStatus(prev => ({ ...prev, [formId]: 'completed' }));
           
           // Store form in database
           await storeFormInDatabase(formId, prefilledData);
           
-          // Check if all forms are completed
-          const allFormsCompleted = formTypes.every(formType => 
-            formType === formId || generationStatus[formType] === 'completed'
-          );
-          if (allFormsCompleted) {
-            setFormsGenerated(true);
+          // Store clinician summary for patient summary generation
+          if (formId === 'clinician_summary') {
+            clinicianSummaryData = prefilledData;
           }
         } else {
           setGenerationStatus(prev => ({ ...prev, [formId]: 'error' }));
@@ -276,50 +281,17 @@ export default function FormsPage() {
         console.error(`Error generating form ${formId}:`, error);
         setGenerationStatus(prev => ({ ...prev, [formId]: 'error' }));
       }
-    });
+    }
+    
+    // Mark all forms as generated
+    setFormsGenerated(true);
   };
 
   // Generate all forms
   const generateAllForms = async () => {
+    // Use the sequential generation function
     const formTemplates = ['clinician_summary', 'patient_summary'];
-    
-    // Set all forms to generating status
-    const initialStatus = formTemplates.reduce((acc, formId) => {
-      acc[formId] = 'generating';
-      return acc;
-    }, {} as Record<string, 'generating'>);
-    setGenerationStatus(initialStatus);
-    
-    // Generate forms in parallel
-    formTemplates.forEach(async (formId) => {
-      try {
-        const response = await fetch('/api/forms/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            formId,
-            transcript,
-            reservationId
-          })
-        });
-
-            if (response.ok) {
-              const data = await response.json();
-              // Pre-fill the form data with patient and doctor information
-              const prefilledData = prefillFormData(formId, data);
-              setGeneratedForms(prev => ({ ...prev, [formId]: prefilledData }));
-              setGenerationStatus(prev => ({ ...prev, [formId]: 'completed' }));
-              
-              // Store form in database
-              await storeFormInDatabase(formId, prefilledData);
-            } else {
-          setGenerationStatus(prev => ({ ...prev, [formId]: 'error' }));
-        }
-      } catch (error) {
-        console.error(`Error generating form ${formId}:`, error);
-        setGenerationStatus(prev => ({ ...prev, [formId]: 'error' }));
-      }
-    });
+    await generateSpecificForms(formTemplates);
   };
 
   // Force regenerate all forms (dev only)
@@ -444,6 +416,7 @@ export default function FormsPage() {
   const handleFormNameClick = (formId: string) => {
     setSelectedForm(formId);
   };
+
 
   // Handle form field changes
   const handleFieldChange = (fieldName: string, value: any) => {

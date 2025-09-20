@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { formId, transcript, reservationId } = await request.json();
+    const { formId, transcript, reservationId, clinicianSummary } = await request.json();
 
     if (!formId || !transcript) {
       return NextResponse.json({ error: 'Form ID and transcript are required' }, { status: 400 });
     }
 
     // Generate form data using LLM based on transcript
-    const formData = await generateFormData(formId, transcript);
+    const formData = await generateFormData(formId, transcript, clinicianSummary);
 
     // Send WebSocket notification if reservationId is provided
     if (reservationId) {
@@ -55,10 +55,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function generateFormData(formType: string, transcript: string) {
+async function generateFormData(formType: string, transcript: string, clinicianSummary?: any) {
   try {
     // Create prompt based on form type with RAG context
-    const prompt = await createFormPrompt(formType, transcript);
+    const prompt = await createFormPrompt(formType, transcript, clinicianSummary);
 
     // Call Ollama API
     const response = await fetch('http://localhost:11434/api/generate', {
@@ -105,12 +105,19 @@ async function generateFormData(formType: string, transcript: string) {
   }
 }
 
-async function createFormPrompt(formType: string, transcript: string): Promise<string> {
+async function createFormPrompt(formType: string, transcript: string, clinicianSummary?: any): Promise<string> {
   // Extract key medical terms for RAG search
   const medicalTerms = extractMedicalTerms(transcript);
+  console.log('Extracted medical terms:', medicalTerms);
   
   // Get PubMed information using RAG
   const ragContext = await getPubMedContext(medicalTerms);
+  console.log('PubMed context:', ragContext.substring(0, 200) + '...');
+  
+  // Debug logging for clinician summary
+  if (clinicianSummary && formType === 'patient_summary') {
+    console.log('Using clinician summary for patient summary generation:', JSON.stringify(clinicianSummary, null, 2));
+  }
   
   const basePrompt = `You are a medical AI assistant helping doctors fill out forms based on consultation transcripts. 
 
@@ -120,6 +127,31 @@ ${transcript}
 MEDICAL CONTEXT (from PubMed research):
 ${ragContext}
 
+${clinicianSummary && formType === 'patient_summary' ? `
+CLINICIAN SUMMARY (for reference and alignment):
+${JSON.stringify(clinicianSummary, null, 2)}
+
+CRITICAL: The Patient Summary must align with the Clinician Summary above. Use the same medical information but with patient-friendly language. Pay special attention to:
+
+MEDICATIONS ALIGNMENT:
+- If Clinician Summary mentions "Antipyretics for fever management, such as acetaminophen or ibuprofen", Patient Summary should mention "acetaminophen (Tylenol) or ibuprofen (Advil) for fever reduction"
+- If Clinician Summary mentions "antibiotics", Patient Summary should mention "antibiotics to help fight the infection"
+- NEVER mention medications that aren't in the Clinician Summary
+
+FOLLOW-UP TIMING ALIGNMENT:
+- If Clinician Summary says "Follow-up appointment in 7 days", Patient Summary MUST say "follow-up appointment in 7 days" (exact same number)
+- If Clinician Summary says "Follow-up appointment in 3 days", Patient Summary MUST say "follow-up appointment in 3 days" (exact same number)
+- NEVER use different follow-up timing than what's specified in Clinician Summary
+
+DIAGNOSIS ALIGNMENT:
+- Use the same diagnosis but explain it in simple, caring terms
+- If Clinician Summary mentions "dengue fever", Patient Summary should explain "dengue fever" in patient-friendly language
+
+TREATMENT PLAN ALIGNMENT:
+- Convert the clinical treatment plan into patient-friendly instructions
+- Use the same medications and treatments mentioned in Clinician Summary
+` : ''}
+
 INSTRUCTIONS:
 - Extract relevant information from the transcript
 - Use the PubMed context to ensure medical accuracy
@@ -128,11 +160,13 @@ INSTRUCTIONS:
 - Clinician Summary: Use professional medical terminology
 - Patient Summary: Use caring, patient-friendly language
 - CRITICAL: The medications in Patient Summary must align with the treatment plan in Clinician Summary
-- CRITICAL: The follow-up plan in Patient Summary must align with the follow-up in Clinician Summary
-- If Clinician Summary mentions "Antipyretics for fever management", Patient Summary should mention fever-reducing medications
-- If Clinician Summary mentions "antibiotics", Patient Summary should mention antibiotic medications
-- If Clinician Summary mentions "Schedule follow-up in X days", Patient Summary should mention "follow-up appointment in X days" (exact same number)
-- If Clinician Summary mentions "Follow-up appointment in 1-2 weeks", Patient Summary should mention "follow-up appointment in 1-2 weeks" (exact same timing)
+- CRITICAL: The follow-up plan in Patient Summary must align EXACTLY with the follow-up in Clinician Summary
+- CRITICAL: For Patient Summary, if Clinician Summary is provided, use EXACTLY the same medications and follow-up timing
+- If Clinician Summary mentions "Antipyretics for fever management, such as acetaminophen or ibuprofen", Patient Summary should mention "acetaminophen (Tylenol) or ibuprofen (Advil) for fever reduction"
+- If Clinician Summary mentions "antibiotics", Patient Summary should mention "antibiotics to help fight the infection"
+- If Clinician Summary mentions "Follow-up appointment in X days", Patient Summary MUST mention "follow-up appointment in X days" (exact same timing)
+- NEVER use different follow-up timing between the two forms - they must be identical
+- NEVER mention medications in Patient Summary that aren't mentioned in Clinician Summary
 - NEVER use placeholder text like [X] or [insert date] - always use actual numbers and specific timing
 - Add citation numbers [1], [2], etc. to key medical statements that reference the consultation transcript
 - Use citation numbers sparingly - only for important medical findings, symptoms, or treatments mentioned in the transcript
@@ -174,7 +208,7 @@ CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no text before o
   "instructions": "How to take your medications (when, how often, with food, etc.) with caring guidance",
   "homeCare": "What you can do at home to help with your condition - explained with care and encouragement [2]",
   "recovery": "What to expect during your recovery and how to take care of yourself with supportive language",
-  "followUp": "When to come back for your next appointment with reassurance (must align exactly with clinician follow-up timing and content - use actual numbers, not placeholders)",
+  "followUp": "When to come back for your next appointment with reassurance (must align exactly with clinician follow-up timing and content)",
   "warningSigns": "Signs and symptoms to watch out for that need immediate attention - explained with concern",
   "whenToSeekHelp": "When and how to contact your doctor or seek emergency care - with caring guidance"
 }`;
@@ -438,6 +472,7 @@ function cleanPlaceholderText(formData: Record<string, any>): Record<string, any
   
   return cleaned;
 }
+
 
 function getDefaultFormData(formType: string): Record<string, any> {
   switch (formType) {
