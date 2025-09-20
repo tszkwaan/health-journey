@@ -30,6 +30,7 @@ model User {
   email        String   @unique
   passwordHash String
   role         Role
+  dateOfBirth  DateTime?
 
   // VoiceAI consent
   voiceAIConsent Boolean @default(false)
@@ -38,6 +39,8 @@ model User {
   reservations Reservation[]
   doctorProfile Doctor?
   medicalBackgrounds MedicalBackground[]
+  auditLogs AuditLog[]
+  consentRecords ConsentRecord[]
 }
 
 model Doctor {
@@ -224,4 +227,164 @@ model MedicalBackgroundVersion {
   // Relations
   medicalBackgroundId String
   medicalBackground   MedicalBackground @relation(fields: [medicalBackgroundId], references: [id], onDelete: Cascade)
+}
+
+// Audit Trail Models
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  ACCESS_DENIED
+  DATA_EXPORT
+  DATA_IMPORT
+  CONSENT_GRANTED
+  CONSENT_REVOKED
+  PHI_ACCESS
+  FORM_GENERATED
+  CONSULTATION_STARTED
+  CONSULTATION_ENDED
+  INTAKE_COMPLETED
+}
+
+enum AuditResource {
+  USER
+  RESERVATION
+  MEDICAL_BACKGROUND
+  INTAKE_SESSION
+  CONSULTATION_SESSION
+  CONSULTATION_FORM
+  AUDIT_LOG
+  SYSTEM
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  createdAt   DateTime    @default(now())
+  
+  // User information
+  userId      String?     // Can be null for system events
+  userRole    Role?       // Role of the user performing the action
+  userEmail   String?     // Email for audit purposes (encrypted)
+  
+  // Action details
+  action      AuditAction
+  resource    AuditResource
+  resourceId  String?     // ID of the resource being acted upon
+  
+  // Request details
+  ipAddress   String?     // IP address of the request
+  userAgent   String?     // User agent string
+  sessionId   String?     // Session ID for tracking
+  
+  // Data details
+  oldValues   Json?       // Previous values (for updates)
+  newValues   Json?       // New values (for creates/updates)
+  metadata    Json?       // Additional metadata
+  
+  // Security details
+  isSuccess   Boolean     @default(true)
+  errorCode   String?     // Error code if action failed
+  errorMessage String?    // Error message if action failed
+  
+  // PHI access tracking
+  phiAccessed Boolean     @default(false)
+  phiFields   String[]    // List of PHI fields accessed
+  
+  // Consent tracking
+  consentRequired Boolean @default(false)
+  consentGiven    Boolean @default(false)
+  consentVersion  String? // Version of consent at time of action
+  
+  // Relations
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  consentRecords ConsentRecord[]
+}
+
+// Consent Management
+enum ConsentType {
+  DATA_PROCESSING
+  VOICE_AI
+  MEDICAL_RECORDS_ACCESS
+  FORM_GENERATION
+  EXTERNAL_SHARING
+  RESEARCH_PARTICIPATION
+}
+
+enum ConsentStatus {
+  GRANTED
+  REVOKED
+  EXPIRED
+  PENDING
+}
+
+model ConsentRecord {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  // User information
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Consent details
+  consentType ConsentType
+  status      ConsentStatus @default(PENDING)
+  version     String        // Version of the consent form
+  
+  // Consent data
+  consentText String        // The actual consent text shown to user
+  grantedAt   DateTime?     // When consent was granted
+  revokedAt   DateTime?     // When consent was revoked
+  expiresAt   DateTime?     // When consent expires (if applicable)
+  
+  // Legal details
+  ipAddress   String?       // IP address when consent was given
+  userAgent   String?       // User agent when consent was given
+  sessionId   String?       // Session ID when consent was given
+  
+  // Audit trail
+  auditLogId  String?       // Reference to audit log entry
+  auditLog    AuditLog?     @relation(fields: [auditLogId], references: [id])
+}
+
+// Data Encryption Keys
+model EncryptionKey {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  
+  // Key details
+  keyId       String   @unique // Unique identifier for the key
+  algorithm   String   @default("AES-256-GCM")
+  keyVersion  Int      @default(1)
+  isActive    Boolean  @default(true)
+  
+  // Key metadata
+  description String?
+  createdBy   String?  // User ID who created the key
+  
+  // Relations
+  encryptedFields EncryptedField[]
+}
+
+// Encrypted Field Tracking
+model EncryptedField {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  
+  // Field details
+  tableName   String   // Database table name
+  fieldName   String   // Field name
+  recordId    String   // Record ID
+  
+  // Encryption details
+  keyId       String   // Encryption key used
+  algorithm   String   @default("AES-256-GCM")
+  iv          String   // Initialization vector
+  tag         String?  // Authentication tag
+  
+  // Relations
+  encryptionKey EncryptionKey @relation(fields: [keyId], references: [keyId])
 }

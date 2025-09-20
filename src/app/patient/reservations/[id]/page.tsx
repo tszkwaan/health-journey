@@ -26,6 +26,16 @@ interface IntakeSession {
   answers?: any;
 }
 
+interface ConsultationForm {
+  id: string;
+  formType: string;
+  formData: any;
+  isGenerated: boolean;
+  isCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface Reservation {
   id: string;
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
@@ -35,7 +45,7 @@ interface Reservation {
   intakeSession?: IntakeSession;
 }
 
-type TabType = 'overview' | 'notes' | 'intake';
+type TabType = 'overview' | 'consultation-summary' | 'intake';
 
 export default function PatientReservationDetailPage() {
   const { data: session, status } = useSession();
@@ -46,6 +56,8 @@ export default function PatientReservationDetailPage() {
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [consultationForms, setConsultationForms] = useState<ConsultationForm[]>([]);
+  const [formsLoading, setFormsLoading] = useState(false);
 
   // Redirect if not authenticated or not a patient
   useEffect(() => {
@@ -79,24 +91,56 @@ export default function PatientReservationDetailPage() {
     fetchReservation();
   }, [status, session, reservationId]);
 
+  // Fetch consultation forms when consultation summary tab is active
+  useEffect(() => {
+    if (activeTab === 'consultation-summary' && reservation) {
+      fetchConsultationForms();
+    }
+  }, [activeTab, reservation]);
+
+  const fetchConsultationForms = async () => {
+    setFormsLoading(true);
+    try {
+      const response = await fetch(`/api/reservations/${reservationId}/forms`);
+      if (response.ok) {
+        const data = await response.json();
+        setConsultationForms(data || []);
+      } else {
+        console.error('Failed to fetch consultation forms');
+      }
+    } catch (error) {
+      console.error('Error fetching consultation forms:', error);
+    } finally {
+      setFormsLoading(false);
+    }
+  };
+
   const getReservationStatus = () => {
     if (!reservation) return 'Unknown';
     
     if (reservation.status === 'CANCELLED') return 'Cancelled';
-    if (reservation.status === 'COMPLETED') return 'Completed';
-    if (reservation.intakeSession?.progress === 100) return 'Intake Done';
-    if (reservation.intakeSession?.progress > 0) return 'In Progress';
-    return 'Intake Pending';
+    
+    // Check if consultation is completed (has consultation forms)
+    if (consultationForms.length > 0) {
+      return 'Consultation Completed';
+    }
+    
+    // Check if intake is completed
+    if (reservation.intakeSession?.progress === 100) {
+      return 'Pending for Consultation';
+    }
+    
+    // Default to intake pending
+    return 'Pending for Intake';
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Intake Done':
-      case 'Completed':
-        return 'bg-purple-100 text-purple-800';
-      case 'In Progress':
+      case 'Consultation Completed':
+        return 'bg-green-100 text-green-800';
+      case 'Pending for Consultation':
         return 'bg-blue-100 text-blue-800';
-      case 'Intake Pending':
+      case 'Pending for Intake':
         return 'bg-orange-100 text-orange-800';
       case 'Cancelled':
         return 'bg-red-100 text-red-800';
@@ -183,7 +227,7 @@ export default function PatientReservationDetailPage() {
             </div>
             <div className="flex items-center gap-4">
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(currentStatus)}`}>
-                <div className={`w-2 h-2 rounded-full mr-2 ${currentStatus === 'Intake Done' || currentStatus === 'Completed' ? 'bg-purple-500' : currentStatus === 'In Progress' ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
+                <div className={`w-2 h-2 rounded-full mr-2 ${currentStatus === 'Consultation Completed' ? 'bg-green-500' : currentStatus === 'Pending for Consultation' ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
                 {currentStatus}
               </span>
             </div>
@@ -202,7 +246,7 @@ export default function PatientReservationDetailPage() {
                 <nav className="flex space-x-8 px-6">
                   {[
                     { id: 'overview', label: 'Overview' },
-                    { id: 'notes', label: 'Notes' },
+                    { id: 'consultation-summary', label: 'Consultation Summary' },
                     { id: 'intake', label: 'Intake' }
                   ].map((tab) => (
                     <button
@@ -271,14 +315,72 @@ export default function PatientReservationDetailPage() {
                   </div>
                 )}
 
-                {activeTab === 'notes' && (
+                {activeTab === 'consultation-summary' && (
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Notes</h3>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <p className="text-gray-600">
-                        {reservation.notes || 'No notes available for this reservation.'}
-                      </p>
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Consultation Summary</h3>
+                    {formsLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                        <span className="ml-2 text-gray-600">Loading consultation summary...</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {consultationForms.length === 0 ? (
+                          <div className="bg-gray-50 rounded-lg p-6 text-center">
+                            <p className="text-gray-600">No consultation summary available yet.</p>
+                            <p className="text-sm text-gray-500 mt-2">The consultation summary will appear here after your appointment.</p>
+                          </div>
+                        ) : (
+                          consultationForms
+                            .filter(form => form.formType === 'patient_summary')
+                            .map((form) => (
+                              <div key={form.id} className="bg-white border border-gray-200 rounded-lg p-6">
+                                <div className="space-y-6">
+                                  {form.formData && Object.entries(form.formData).map(([key, value]) => {
+                                    if (key === 'citations' || key === 'patientName' || key === 'dateOfBirth' || !value) return null;
+                                    
+                                    const fieldLabels: { [key: string]: string } = {
+                                      diagnosis: 'Your Diagnosis',
+                                      medications: 'Your Medications',
+                                      instructions: 'Medication Instructions',
+                                      homeCare: 'Home Care Instructions',
+                                      recovery: 'Recovery Instructions',
+                                      followUp: 'Follow-Up Plan',
+                                      warningSigns: 'Warning Signs to Watch For',
+                                      whenToSeekHelp: 'When to Seek Help'
+                                    };
+                                    
+                                    return (
+                                      <div key={key} className="border-b border-gray-100 pb-4 last:border-b-0">
+                                        <h4 className="text-md font-semibold text-gray-900 mb-2">
+                                          {fieldLabels[key] || key}
+                                        </h4>
+                                        <div className="text-gray-700 leading-relaxed">
+                                          {typeof value === 'string' ? value : JSON.stringify(value)}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                  
+                                  {form.formData?.citations && form.formData.citations.length > 0 && (
+                                    <div className="mt-6 pt-4 border-t border-gray-200">
+                                      <h4 className="text-md font-semibold text-gray-900 mb-3">References</h4>
+                                      <div className="space-y-2">
+                                        {form.formData.citations.map((citation: any, index: number) => (
+                                          <div key={index} className="text-sm text-gray-600">
+                                            <span className="font-medium">[{citation.id}]</span> {citation.content} 
+                                            <span className="text-gray-500 ml-2">({citation.source}, {citation.timestamp})</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
