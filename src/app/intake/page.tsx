@@ -24,11 +24,30 @@ export default function IntakePage() {
   const [finalTranscripts, setFinalTranscripts] = useState<string[]>([]);
   const [combinedTranscript, setCombinedTranscript] = useState<string>("");
   const [voiceAIConsent, setVoiceAIConsent] = useState<boolean>(false);
+  
+  // Complete transcript tracking
+  const [completeTranscript, setCompleteTranscript] = useState<Array<{
+    timestamp: string;
+    speaker: 'system' | 'patient';
+    content: string;
+    step?: string;
+  }>>([]);
   const clientRef = useRef<STTWebSocketClient | null>(null);
   const recogRef = useRef<SpeechRecognition | null>(null);
   const lastPartialRef = useRef<string>("");
   const lastFinalRef = useRef<string>("");
   const finalsRef = useRef<string[]>([]);
+
+  // Helper function to add entries to complete transcript
+  const addToTranscript = (speaker: 'system' | 'patient', content: string, step?: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setCompleteTranscript(prev => [...prev, {
+      timestamp,
+      speaker,
+      content,
+      step
+    }]);
+  };
 
   // Fetch user's VoiceAI consent
   useEffect(() => {
@@ -71,6 +90,9 @@ export default function IntakePage() {
         setProgress(data.progress);
         setUtterance(data.utterance);
         setCurrentAnswers({});
+        
+        // Add initial system message to transcript
+        addToTranscript('system', data.utterance, data.current_step);
       } catch (error) {
         console.error('Error starting session:', error);
         setUtterance('Sorry, I encountered an error. Please refresh the page and try again.');
@@ -95,7 +117,8 @@ export default function IntakePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId,
-          userText: userInput.trim()
+          userText: userInput.trim(),
+          completeTranscript: completeTranscript
         })
       });
       
@@ -109,6 +132,13 @@ export default function IntakePage() {
       setUtterance(data.utterance);
       setRequiresCorrection(data.requires_correction || false);
       setReviewSnapshot(data.review_snapshot || null);
+      
+      // Add patient response to transcript
+      addToTranscript('patient', userInput.trim(), currentStep);
+      
+      // Add system response to transcript
+      addToTranscript('system', data.utterance, data.current_step);
+      
       setUserInput(''); // Clear input
       
       // Clear voice transcript when sending text input
@@ -357,24 +387,26 @@ export default function IntakePage() {
             {/* User input form */}
             {!isCompleteStep && (
               <div className="space-y-4">
-                <form onSubmit={handleSubmit} className="flex gap-4">
-                  <input
-                    type="text"
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  <textarea
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
                     placeholder="Type your response here..."
-                    className="flex-1 rounded-2xl border-2 border-purple-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 p-4 text-lg placeholder-gray-400 transition-all duration-200"
+                    className="w-full rounded-2xl border-2 border-purple-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 p-4 text-lg placeholder-gray-400 transition-all duration-200 resize-none min-h-[100px]"
                     style={{ fontFamily: 'var(--font-noto-sans)' }}
                     disabled={isLoading}
+                    rows={3}
                   />
-                  <button
-                    type="submit"
-                    disabled={!userInput.trim() || isLoading}
-                    className="px-8 py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ fontFamily: 'var(--font-noto-sans)' }}
-                  >
-                    {isLoading ? 'Sending...' : 'Send'}
-                  </button>
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={!userInput.trim() || isLoading}
+                      className="px-8 py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ fontFamily: 'var(--font-noto-sans)' }}
+                    >
+                      {isLoading ? 'Sending...' : 'Send'}
+                    </button>
+                  </div>
                 </form>
 
                 {/* Voice input controls */}
@@ -410,6 +442,32 @@ export default function IntakePage() {
                     </p>
                   )}
                 </div>
+                
+                {/* Complete Transcript Display */}
+                {completeTranscript.length > 0 && (
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                      Complete Transcript
+                    </h3>
+                    <div className="max-h-48 overflow-y-auto space-y-2">
+                      {completeTranscript.map((entry, index) => (
+                        <div key={index} className="flex items-start gap-3 text-xs">
+                          <span className="text-gray-500 font-mono min-w-[60px]">
+                            {entry.timestamp}
+                          </span>
+                          <span className={`font-semibold min-w-[60px] ${
+                            entry.speaker === 'system' ? 'text-blue-600' : 'text-green-600'
+                          }`}>
+                            {entry.speaker === 'system' ? 'System' : 'Patient'}
+                          </span>
+                          <span className="text-gray-700 flex-1" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                            {entry.content}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

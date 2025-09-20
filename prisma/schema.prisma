@@ -114,6 +114,7 @@ model IntakeSession {
   flags       Json     // Store flags like editMode, skipped fields
   progress    Int      // 0-100
   reservationId String? // Store the reservation ID for linking
+  completeTranscript Json? // Store the complete transcript with timestamps
   
   // Relations
   reservation Reservation?

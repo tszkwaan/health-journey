@@ -71,6 +71,12 @@ export interface StartIntakeResponse {
 export interface MessageIntakeRequest {
   sessionId: string;
   userText: string;
+  completeTranscript?: Array<{
+    timestamp: string;
+    speaker: 'system' | 'patient';
+    content: string;
+    step?: string;
+  }>;
 }
 
 export interface MessageIntakeResponse {

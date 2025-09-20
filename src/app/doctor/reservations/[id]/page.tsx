@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { summarizeIntakeData, IntakeSummary } from '@/lib/intake/summarizer';
 
 interface Patient {
   id: string;
@@ -21,6 +22,12 @@ interface IntakeSession {
   id: string;
   progress: number;
   answers?: any;
+  completeTranscript?: Array<{
+    timestamp: string;
+    speaker: 'system' | 'patient';
+    content: string;
+    step?: string;
+  }>;
 }
 
 interface Citation {
@@ -92,6 +99,8 @@ export default function ReservationDetailPage() {
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [includeExternal, setIncludeExternal] = useState(false);
   const [chatContainerRef, setChatContainerRef] = useState<HTMLDivElement | null>(null);
+  const [intakeSummary, setIntakeSummary] = useState<IntakeSummary | null>(null);
+  const [isGeneratingIntakeSummary, setIsGeneratingIntakeSummary] = useState(false);
 
   // Set client-side flag to prevent hydration issues
   useEffect(() => {
@@ -114,6 +123,21 @@ export default function ReservationDetailPage() {
     }
   }, [status, session, router]);
 
+  // Generate intake summary
+  const generateIntakeSummary = async (answers: any) => {
+    if (!answers) return;
+    
+    setIsGeneratingIntakeSummary(true);
+    try {
+      const summary = await summarizeIntakeData(answers);
+      setIntakeSummary(summary);
+    } catch (error) {
+      console.error('Error generating intake summary:', error);
+    } finally {
+      setIsGeneratingIntakeSummary(false);
+    }
+  };
+
   // Fetch reservation details
   useEffect(() => {
     async function fetchReservation() {
@@ -123,6 +147,11 @@ export default function ReservationDetailPage() {
           if (response.ok) {
             const data = await response.json();
             setReservation(data);
+            
+            // Generate intake summary if intake session exists
+            if (data.intakeSession?.answers) {
+              generateIntakeSummary(data.intakeSession.answers);
+            }
           } else {
             console.error('Failed to fetch reservation:', response.statusText);
           }
@@ -687,58 +716,59 @@ export default function ReservationDetailPage() {
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-4">Intake Summary</h3>
                           <div className="bg-gray-50 rounded-lg p-4">
-                            {reservation.intakeSession.answers ? (
-                              <div className="space-y-3">
-                                {Object.entries(reservation.intakeSession.answers).map(([key, value]) => {
-                                  // Special handling for patient_info object
-                                  if (key === 'patient_info' && typeof value === 'object' && value !== null) {
-                                    const patientInfo = value as { full_name?: string; dob?: string; phone?: string };
-                                    return (
-                                      <div key={key}>
-                                        <span className="text-sm font-medium text-gray-700 capitalize">
-                                          {key.replace(/_/g, ' ')}:
-                                        </span>
-                                        <div className="ml-2 mt-1 space-y-1">
-                                          <div className="text-sm text-gray-600">
-                                            <span className="font-medium">Name:</span> {patientInfo.full_name || 'Not provided'}
-                                          </div>
-                                          <div className="text-sm text-gray-600">
-                                            <span className="font-medium">Date of Birth:</span> {patientInfo.dob || 'Not provided'}
-                                          </div>
-                                          <div className="text-sm text-gray-600">
-                                            <span className="font-medium">Phone:</span> {patientInfo.phone || 'Not provided'}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-                                  
-                                  // Handle arrays (like allergies, medical_conditions, etc.)
-                                  if (Array.isArray(value)) {
-                                    return (
-                                      <div key={key}>
-                                        <span className="text-sm font-medium text-gray-700 capitalize">
-                                          {key.replace(/_/g, ' ')}:
-                                        </span>
-                                        <span className="text-sm text-gray-600 ml-2">
-                                          {value.length > 0 ? value.join(', ') : 'None'}
-                                        </span>
-                                      </div>
-                                    );
-                                  }
-                                  
-                                  // Handle regular string values
-                                  return (
-                                    <div key={key}>
-                                      <span className="text-sm font-medium text-gray-700 capitalize">
-                                        {key.replace(/_/g, ' ')}:
-                                      </span>
-                                      <span className="text-sm text-gray-600 ml-2">
-                                        {typeof value === 'string' ? value : JSON.stringify(value)}
-                                      </span>
+                            {isGeneratingIntakeSummary ? (
+                              <div className="flex items-center justify-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                                <span className="ml-3 text-gray-600">Generating AI summary...</span>
+                              </div>
+                            ) : intakeSummary ? (
+                              <div className="space-y-4">
+                                {/* Patient Information */}
+                                <div className="border-b border-gray-200 pb-3">
+                                  <h4 className="text-md font-semibold text-gray-800 mb-2">Patient Information</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                    <div>
+                                      <span className="font-medium text-gray-700">Name:</span>
+                                      <p className="text-gray-600">{intakeSummary.patient_info.name}</p>
                                     </div>
-                                  );
-                                })}
+                                    <div>
+                                      <span className="font-medium text-gray-700">Date of Birth:</span>
+                                      <p className="text-gray-600">{intakeSummary.patient_info.dob}</p>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Phone:</span>
+                                      <p className="text-gray-600">{intakeSummary.patient_info.phone}</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Visit Information */}
+                                <div className="space-y-3">
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-700">Visit Reason:</span>
+                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.visit_reason}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-700">Symptom Onset:</span>
+                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.symptom_onset}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-700">Previous Treatment:</span>
+                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.previous_treatment}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-700">Medical Conditions:</span>
+                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.medical_conditions}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-700">Allergies:</span>
+                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.allergies}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-700">Concerns:</span>
+                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.concerns}</p>
+                                  </div>
+                                </div>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-600">No intake data available</p>
@@ -748,9 +778,29 @@ export default function ReservationDetailPage() {
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-4">Complete Transcript</h3>
                           <div className="bg-gray-50 rounded-lg p-4">
-                            <p className="text-sm text-gray-600">
-                              Complete conversation transcript will be available here once the intake system is fully implemented with transcript storage.
-                            </p>
+                            {reservation.intakeSession.completeTranscript && reservation.intakeSession.completeTranscript.length > 0 ? (
+                              <div className="space-y-3 max-h-96 overflow-y-auto">
+                                {reservation.intakeSession.completeTranscript.map((entry, index) => (
+                                  <div key={index} className="flex items-start gap-3 text-sm">
+                                    <span className="text-gray-500 font-mono min-w-[80px] text-xs">
+                                      {entry.timestamp}
+                                    </span>
+                                    <span className={`font-semibold min-w-[80px] text-xs ${
+                                      entry.speaker === 'system' ? 'text-blue-600' : 'text-green-600'
+                                    }`}>
+                                      {entry.speaker === 'system' ? 'System' : 'Patient'}
+                                    </span>
+                                    <span className="text-gray-700 flex-1" style={{ fontFamily: 'var(--font-noto-sans)' }}>
+                                      {entry.content}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-600">
+                                No transcript available for this intake session.
+                              </p>
+                            )}
                           </div>
                         </div>
                       </>

@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
 export async function POST(request: NextRequest): Promise<NextResponse<MessageIntakeResponse>> {
   try {
     const body: MessageIntakeRequest = await request.json();
-    const { sessionId, userText } = body;
+    const { sessionId, userText, completeTranscript } = body;
     
     // Validate request
     if (!sessionId || !userText) {
@@ -69,7 +69,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
           flags: updatedSession.flags as any,
           progress: result.progress, // Use the progress from the result
           // Preserve existing reservationId if it exists
-          reservationId: existingSession?.reservationId || null
+          reservationId: existingSession?.reservationId || null,
+          // Update complete transcript if provided
+          completeTranscript: completeTranscript || existingSession?.completeTranscript || null
         },
         create: {
           sessionId: sessionId,
@@ -77,7 +79,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
           answers: updatedSession.answers,
           flags: updatedSession.flags as any,
           progress: result.progress, // Use the progress from the result
-          reservationId: null // Will be set when starting intake with reservationId
+          reservationId: null, // Will be set when starting intake with reservationId
+          completeTranscript: completeTranscript || null
         }
       });
 

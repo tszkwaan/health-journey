@@ -78,6 +78,7 @@ export async function GET(
             id: true,
             progress: true,
             answers: true,
+            completeTranscript: true,
           }
         }
       }
@@ -174,6 +175,7 @@ export async function PATCH(
             id: true,
             progress: true,
             answers: true,
+            completeTranscript: true,
           }
         }
       }
