@@ -72,34 +72,26 @@ export default function PatientReservationsPage() {
     fetchReservations();
   }, [status, session]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED':
-        return 'bg-green-100 text-green-800';
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'COMPLETED':
-        return 'bg-blue-100 text-blue-800';
-      case 'CANCELLED':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const getStatusColor = (reservation: Reservation) => {
+    if (reservation.status === 'CANCELLED') return 'bg-red-100 text-red-800';
+    if (reservation.status === 'COMPLETED') return 'bg-green-100 text-green-800';
+    
+    // For pending/confirmed reservations, show intake-based status colors
+    const intakeStatus = getIntakeStatus(reservation);
+    if (intakeStatus === 'Completed') return 'bg-blue-100 text-blue-800';
+    if (intakeStatus === 'In Progress') return 'bg-yellow-100 text-yellow-800';
+    return 'bg-orange-100 text-orange-800';
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED':
-        return 'Confirmed';
-      case 'PENDING':
-        return 'Pending';
-      case 'COMPLETED':
-        return 'Completed';
-      case 'CANCELLED':
-        return 'Cancelled';
-      default:
-        return status;
-    }
+  const getStatusText = (reservation: Reservation) => {
+    if (reservation.status === 'CANCELLED') return 'Cancelled';
+    if (reservation.status === 'COMPLETED') return 'Completed';
+    
+    // For pending/confirmed reservations, show intake status
+    const intakeStatus = getIntakeStatus(reservation);
+    if (intakeStatus === 'Completed') return 'Pending for Consultation';
+    if (intakeStatus === 'In Progress') return 'Intake In Progress';
+    return 'Pending for Intake';
   };
 
   const getIntakeStatus = (reservation: Reservation) => {
@@ -107,19 +99,6 @@ export default function PatientReservationsPage() {
     if (reservation.intakeSession.progress === 100) return 'Completed';
     if (reservation.intakeSession.progress > 0) return 'In Progress';
     return 'Not Started';
-  };
-
-  const getIntakeStatusColor = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return 'text-green-600';
-      case 'In Progress':
-        return 'text-blue-600';
-      case 'Not Started':
-        return 'text-orange-600';
-      default:
-        return 'text-gray-600';
-    }
   };
 
   const formatTime = (time: string) => {
@@ -197,7 +176,6 @@ export default function PatientReservationsPage() {
           {reservations.length > 0 ? (
             <div className="space-y-4">
               {reservations.map((reservation) => {
-                const intakeStatus = getIntakeStatus(reservation);
                 return (
                   <Link 
                     key={reservation.id} 
@@ -217,8 +195,8 @@ export default function PatientReservationsPage() {
                           <h3 className="text-xl font-semibold text-gray-900">
                             Dr. {reservation.doctor.name}
                           </h3>
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(reservation.status)}`}>
-                            {getStatusText(reservation.status)}
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(reservation)}`}>
+                            {getStatusText(reservation)}
                           </span>
                         </div>
                         <p className="text-gray-600 mb-1">
@@ -229,20 +207,6 @@ export default function PatientReservationsPage() {
                           <span>{formatTime(reservation.timeSlot.startTime)} - {formatTime(reservation.timeSlot.endTime)}</span>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Intake Status */}
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500 mb-1">Pre-care Intake</p>
-                        <p className={`text-sm font-medium ${getIntakeStatusColor(intakeStatus)}`}>
-                          {intakeStatus}
-                        </p>
-                      </div>
-                      <div className={`w-3 h-3 rounded-full ${
-                        intakeStatus === 'Completed' ? 'bg-green-500' : 
-                        intakeStatus === 'In Progress' ? 'bg-blue-500' : 'bg-orange-500'
-                      }`}></div>
                     </div>
                     </div>
                   </Link>
