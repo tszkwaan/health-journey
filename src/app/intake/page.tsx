@@ -149,6 +149,11 @@ export default function IntakePage() {
       lastFinalRef.current = "";
       finalsRef.current = [];
       
+      // Stop voice recording if intake is completed
+      if (data.current_step === 'complete' && isListening) {
+        stopVoiceInput();
+      }
+      
     } catch (error) {
       console.error('Error sending message:', error);
       setUtterance('Sorry, I encountered an error processing your message. Please try again.');
@@ -309,6 +314,13 @@ export default function IntakePage() {
       setUserInput(combinedTranscript);
     }
   }, [combinedTranscript]);
+
+  // Stop voice recording when intake is completed
+  useEffect(() => {
+    if (currentStep === 'complete' && isListening) {
+      stopVoiceInput();
+    }
+  }, [currentStep, isListening]);
 
   // Get step display name
   const getStepDisplayName = (step: IntakeStep): string => {
