@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { PrismaClient } from '@prisma/client';
-import { withPatientAccess, withDoctorAccess } from '@/lib/security/security-middleware-enhanced';
-import { auditService } from '@/lib/security/audit-service';
-import { encryptionService } from '@/lib/security/encryption-service';
 
 // Create a new Prisma client instance for this API route
 const prisma = new PrismaClient();
@@ -22,46 +19,39 @@ if (typeof process !== 'undefined') {
 }
 
 export async function GET(request: NextRequest) {
-  return withPatientAccess(request, async (context, req) => {
-    try {
-      // Get the current medical background for the patient
-      const medicalBackground = await prisma.medicalBackground.findFirst({
-        where: {
-          patientId: context.userId,
-          isCurrent: true
-        },
-        orderBy: {
-          version: 'desc'
-        }
-      });
-
-      // Log PHI access
-      await auditService.logPHIAccess(
-        context.userId,
-        context.userRole,
-        context.userEmail,
-        'MEDICAL_BACKGROUND' as any,
-        medicalBackground?.id || '',
-        ['medicalHistory', 'medications', 'allergies'],
-        req
-      );
-
-      // Decrypt sensitive data if needed
-      const decryptedData = medicalBackground ? 
-        await encryptionService.decryptPHIData(medicalBackground) : 
-        null;
-
-      // Return null if no medical background exists (this is normal for new users)
-      return NextResponse.json(decryptedData || null);
-
-    } catch (error) {
-      console.error('Error fetching medical background:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch medical background' },
-        { status: 500 }
-      );
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-  });
+
+    // Check if user is a patient
+    if ((session.user as any)?.role !== 'PATIENT') {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // Get the current medical background for the patient
+    const medicalBackground = await prisma.medicalBackground.findFirst({
+      where: {
+        patientId: session.user.id,
+        isCurrent: true
+      },
+      orderBy: {
+        version: 'desc'
+      }
+    });
+
+    // Return null if no medical background exists (this is normal for new users)
+    return NextResponse.json(medicalBackground || null);
+
+  } catch (error) {
+    console.error('Error fetching medical background:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch medical background' },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
