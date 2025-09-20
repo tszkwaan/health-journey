@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Original Voice Input Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            min-height: 50px;
+        }
+        .transcript {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            min-height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Original Voice Input Test</h1>
+        <p>Testing the Web Speech API approach (no Whisper needed).</p>
+        
+        <button id="startBtn" onclick="startRecording()">Start Recording</button>
+        <button id="stopBtn" onclick="stopRecording()" disabled>Stop Recording</button>
+        
+        <div class="status" id="status">Ready to record...</div>
+        <div class="transcript" id="transcript">Transcript will appear here...</div>
+    </div>
+
+    <script>
+        let ws = null;
+        let recognition = null;
+        let isRecording = false;
+        let sessionId = 'test-' + Date.now();
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function updateTranscript(text) {
+            document.getElementById('transcript').textContent = text;
+        }
+
+        function startRecording() {
+            if (isRecording) return;
+            
+            updateStatus('Connecting to WebSocket...');
+            
+            // Connect to WebSocket
+            ws = new WebSocket(`ws://localhost:8000/api/voice/ws/stt?sessionId=${sessionId}`);
+            
+            ws.onopen = function() {
+                updateStatus('WebSocket connected. Starting speech recognition...');
+                startSpeechRecognition();
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                console.log('Received from backend:', data);
+                
+                if (data.type === 'partial_transcript') {
+                    updateStatus('🎤 Listening... (partial)');
+                    updateTranscript(data.text);
+                } else if (data.type === 'final_transcript') {
+                    updateStatus('✅ Final transcript received');
+                    updateTranscript(data.text);
+                }
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                updateStatus('❌ WebSocket connection failed');
+            };
+            
+            ws.onclose = function() {
+                console.log('WebSocket closed');
+                updateStatus('WebSocket disconnected');
+            };
+        }
+
+        function startSpeechRecognition() {
+            // Check for Web Speech API support
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                updateStatus('❌ Web Speech API not supported. Use Chrome for this demo.');
+                return;
+            }
+            
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            
+            recognition.onstart = function() {
+                updateStatus('🎤 Speech recognition started. Speak now!');
+                isRecording = true;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+            };
+            
+            recognition.onresult = function(event) {
+                let interim = '';
+                let final = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const result = event.results[i];
+                    if (result.isFinal) {
+                        final += result[0].transcript;
+                    } else {
+                        interim += result[0].transcript;
+                    }
+                }
+                
+                if (interim) {
+                    updateStatus('🎤 Listening... (interim)');
+                    updateTranscript(interim);
+                    // Send partial transcript to backend
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'partial', text: interim }));
+                    }
+                }
+                
+                if (final) {
+                    updateStatus('✅ Final transcript: ' + final);
+                    updateTranscript(final);
+                    // Send final transcript to backend
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'final', text: final }));
+                    }
+                }
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                updateStatus('❌ Speech recognition error: ' + event.error);
+                isRecording = false;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            };
+            
+            recognition.onend = function() {
+                updateStatus('Speech recognition ended');
+                isRecording = false;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            };
+            
+            try {
+                recognition.start();
+            } catch (error) {
+                console.error('Failed to start speech recognition:', error);
+                updateStatus('❌ Failed to start speech recognition');
+            }
+        }
+
+        function stopRecording() {
+            if (recognition) {
+                recognition.stop();
+            }
+            if (ws) {
+                ws.close();
+            }
+            isRecording = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            updateStatus('Recording stopped');
+        }
+    </script>
+</body>
+</html>

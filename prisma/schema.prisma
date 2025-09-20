@@ -100,6 +100,8 @@ model Reservation {
   timeSlot    TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
   intakeSessionId String? @unique
   intakeSession IntakeSession? @relation(fields: [intakeSessionId], references: [id])
+  consultationSessionId String? @unique
+  consultationSession ConsultationSession? @relation(fields: [consultationSessionId], references: [id])
 }
 
 model IntakeSession {
@@ -115,9 +117,42 @@ model IntakeSession {
   progress    Int      // 0-100
   reservationId String? // Store the reservation ID for linking
   completeTranscript Json? // Store the complete transcript with timestamps
-  
+
   // Relations
   reservation Reservation?
+}
+
+model ConsultationSession {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Session data
+  reservationId String   @unique
+  transcript   Json?    // Store the consultation transcript with timestamps
+  isRecording  Boolean  @default(false)
+  startedAt    DateTime?
+  endedAt      DateTime?
+
+  // Relations
+  reservation Reservation?
+  forms       ConsultationForm[]
+}
+
+model ConsultationForm {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Form data
+  formType    String   // e.g., "diagnosis", "prescription", "treatment_plan"
+  formData    Json     // Store the filled form data
+  isGenerated Boolean  @default(false) // Whether it was AI-generated
+  isCompleted Boolean  @default(false) // Whether doctor has reviewed/completed it
+  
+  // Relations
+  consultationSessionId String
+  consultationSession   ConsultationSession @relation(fields: [consultationSessionId], references: [id], onDelete: Cascade)
 }
 
 model MedicalBackground {

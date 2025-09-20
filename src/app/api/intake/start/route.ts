@@ -58,7 +58,9 @@ export async function POST(request: NextRequest) {
         sessionId: '',
         current_step: 'patient_info',
         progress: 0,
-        utterance: 'I apologize, but I encountered an error. Please try again.'
+        utterance: 'I apologize, but I encountered an error. Please try again.',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );

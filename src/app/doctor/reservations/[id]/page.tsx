@@ -4,6 +4,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { summarizeIntakeData, IntakeSummary } from '@/lib/intake/summarizer';
+import ConsultationTab from '@/components/consultation/ConsultationTab';
+import DocumentsTab from '@/components/consultation/DocumentsTab';
 
 interface Patient {
   id: string;
@@ -81,7 +83,7 @@ interface Reservation {
   medicalBackground?: MedicalBackground | null;
 }
 
-type TabType = 'overview' | 'notes' | 'intake' | 'medical-history';
+type TabType = 'overview' | 'notes' | 'intake' | 'medical-history' | 'consultation' | 'documents';
 
 export default function ReservationDetailPage() {
   const { data: session, status } = useSession();
@@ -453,7 +455,9 @@ export default function ReservationDetailPage() {
                     { id: 'overview', label: 'Overview' },
                     { id: 'notes', label: 'Notes' },
                     { id: 'intake', label: 'Intake' },
-                    { id: 'medical-history', label: 'Medical History' }
+                    { id: 'medical-history', label: 'Medical History' },
+                    { id: 'consultation', label: 'Consultation' },
+                    { id: 'documents', label: 'Documents' }
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -913,6 +917,17 @@ export default function ReservationDetailPage() {
                       </div>
                     )}
                   </div>
+                )}
+
+                {activeTab === 'consultation' && (
+                  <ConsultationTab 
+                    reservationId={reservationId} 
+                    patientName={reservation?.patient?.name || 'Unknown Patient'} 
+                  />
+                )}
+
+                {activeTab === 'documents' && (
+                  <DocumentsTab reservationId={reservationId} />
                 )}
 
               </div>
