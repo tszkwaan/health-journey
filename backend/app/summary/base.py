@@ -9,10 +9,7 @@ class SummaryAdapter:
 
 def get_summary_adapter() -> SummaryAdapter:
     provider = os.getenv("LLM_PROVIDER", "rag")
-    if provider == "openai" and os.getenv("OPENAI_API_KEY"):
-        from .openai_adapter import OpenAISummaryAdapter
-        return OpenAISummaryAdapter(api_key=os.getenv("OPENAI_API_KEY", ""))
-    elif provider == "ollama":
+    if provider == "ollama":
         from .ollama_adapter import OllamaSummaryAdapter
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         model = os.getenv("OLLAMA_MODEL", "llama3.2")

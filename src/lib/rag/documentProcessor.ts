@@ -192,8 +192,8 @@ export class DocumentProcessor {
 
   async generateEmbeddings(chunks: DocumentChunk[]): Promise<DocumentChunk[]> {
     // For now, we'll use a simple text-based similarity
-    // In production, you'd use a proper embedding model like OpenAI's text-embedding-ada-002
-    // or a local model via Ollama
+    // In production, you'd use a proper embedding model via Ollama
+    // or other local embedding models
     
     for (const chunk of chunks) {
       // Simple hash-based embedding for demo purposes
