@@ -418,6 +418,21 @@ export default function FormsPage() {
     return String(value);
   };
 
+  // Render text with citations (similar to Comprehensive Patient Summary)
+  const renderTextWithCitations = (text: string, citations: any[]) => {
+    if (!text || !citations || citations.length === 0) return text;
+
+    // Replace citation numbers with clickable elements
+    let htmlText = text.replace(/\[(\d+)\]/g, (match, citationNumber) => {
+      const citation = citations.find(c => c.id === parseInt(citationNumber));
+      if (!citation) return match;
+
+      return `<sup class="inline-flex items-center justify-center w-5 h-5 text-xs font-medium text-blue-600 bg-blue-100 rounded-full cursor-pointer hover:bg-blue-200 transition-colors" title="${citation.section}: ${citation.content} (Source: ${citation.source})">[${citationNumber}]</sup>`;
+    });
+
+    return htmlText;
+  };
+
   // Handle form selection (both forms are mandatory, so just show the selected form)
   const handleFormSelection = (formId: string) => {
     // Both forms are always selected, just show the selected form
@@ -615,7 +630,7 @@ export default function FormsPage() {
                   onClick={saveForms}
                   className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors"
                 >
-                  Save Both Forms
+                  Save 
                 </button>
               </div>
             </div>
@@ -669,15 +684,17 @@ export default function FormsPage() {
                         )}
                         
                         {field.type === 'textarea' && (
-                          <textarea
-                            value={formatFieldValue(getDisplayValue(field.name, field))}
-                            onChange={field.prefilled ? undefined : (e) => handleFieldChange(field.name, e.target.value)}
-                            rows={3}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                              field.prefilled ? 'bg-gray-100 cursor-not-allowed' : ''
-                            }`}
-                            readOnly={field.prefilled}
-                          />
+                          <div className="relative">
+                            <textarea
+                              value={formatFieldValue(getDisplayValue(field.name, field))}
+                              onChange={field.prefilled ? undefined : (e) => handleFieldChange(field.name, e.target.value)}
+                              rows={3}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                                field.prefilled ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
+                              readOnly={field.prefilled}
+                            />
+                          </div>
                         )}
                         
                         {field.type === 'radio' && field.name === 'form' && (
@@ -707,6 +724,21 @@ export default function FormsPage() {
                       </div>
                     ))}
                   </form>
+                  
+                  {/* References Section */}
+                  {generatedForms[selectedForm]?.citations && generatedForms[selectedForm].citations.length > 0 && (
+                    <div className="mt-6 bg-gray-50 rounded-lg p-6 border border-gray-200">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">References</h4>
+                      <div className="space-y-2">
+                        {generatedForms[selectedForm].citations.map((citation: any, index: number) => (
+                          <div key={citation.id} className="text-sm text-gray-600 flex items-start">
+                            <span className="font-medium text-gray-900 mr-2">[{citation.id}]</span>
+                            <span>{citation.section}: {citation.content} (Source: {citation.source})</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12">

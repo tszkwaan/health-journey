@@ -91,7 +91,13 @@ async function generateFormData(formType: string, transcript: string) {
     const parsedData = parseFormData(formType, generatedText);
     console.log(`Parsed data for ${formType}:`, parsedData);
     
-    return parsedData;
+    // Add citations to the form data
+    const formDataWithCitations = addCitationsToFormData(formType, parsedData, transcript);
+    
+    // Clean up any placeholder text
+    const cleanedFormData = cleanPlaceholderText(formDataWithCitations);
+    
+    return cleanedFormData;
   } catch (error) {
     console.error('Error calling Ollama API:', error);
     // Return default form data if LLM fails
@@ -118,12 +124,20 @@ INSTRUCTIONS:
 - Extract relevant information from the transcript
 - Use the PubMed context to ensure medical accuracy
 - Fill in the form fields with appropriate medical data
-- For common fields (medications, diagnosis, treatment), ensure content alignment with different tones
+- For common fields (medications, diagnosis, treatment, follow-up), ensure content alignment with different tones
 - Clinician Summary: Use professional medical terminology
 - Patient Summary: Use caring, patient-friendly language
 - CRITICAL: The medications in Patient Summary must align with the treatment plan in Clinician Summary
+- CRITICAL: The follow-up plan in Patient Summary must align with the follow-up in Clinician Summary
 - If Clinician Summary mentions "Antipyretics for fever management", Patient Summary should mention fever-reducing medications
 - If Clinician Summary mentions "antibiotics", Patient Summary should mention antibiotic medications
+- If Clinician Summary mentions "Schedule follow-up in X days", Patient Summary should mention "follow-up appointment in X days" (exact same number)
+- If Clinician Summary mentions "Follow-up appointment in 1-2 weeks", Patient Summary should mention "follow-up appointment in 1-2 weeks" (exact same timing)
+- NEVER use placeholder text like [X] or [insert date] - always use actual numbers and specific timing
+- Add citation numbers [1], [2], etc. to key medical statements that reference the consultation transcript
+- Use citation numbers sparingly - only for important medical findings, symptoms, or treatments mentioned in the transcript
+- Example: "Patient presents with cough and fever [1] for 3 days [2]" where [1] and [2] reference specific transcript entries
+- Include citation numbers in sentences that directly reference information from the consultation
 - If information is not available, use "Not specified" or leave empty
 - Return ONLY a JSON object with the form data
 
@@ -139,10 +153,10 @@ Generate a JSON object for a Clinician Summary with these fields. Use profession
 CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no text before or after. Ensure all string values are properly quoted and escaped. Use double quotes for all strings.
 
 {
-  "chiefComplaint": "Primary reason for visit",
-  "historyOfPresentIllness": "Detailed description of current symptoms and their progression",
+  "chiefComplaint": "Primary reason for visit [1]",
+  "historyOfPresentIllness": "Detailed description of current symptoms and their progression [2]",
   "medications": "Current medications and dosages",
-  "physicalExam": "Key physical examination findings",
+  "physicalExam": "Key physical examination findings [3]",
   "assessment": "Clinical assessment and differential diagnosis",
   "plan": "Treatment plan including medications, procedures, and recommendations",
   "followUp": "Follow-up schedule and next steps"
@@ -155,12 +169,12 @@ Generate a JSON object for a Patient Summary with these fields. Use a caring, fr
 CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no text before or after. Ensure all string values are properly quoted and escaped. Use double quotes for all strings.
 
 {
-  "diagnosis": "Your diagnosis explained in simple, caring terms (align with clinician assessment)",
+  "diagnosis": "Your diagnosis explained in simple, caring terms (align with clinician assessment) [1]",
   "medications": "Your medications with clear names and purposes (align with clinician treatment plan)",
   "instructions": "How to take your medications (when, how often, with food, etc.) with caring guidance",
-  "homeCare": "What you can do at home to help with your condition - explained with care and encouragement",
+  "homeCare": "What you can do at home to help with your condition - explained with care and encouragement [2]",
   "recovery": "What to expect during your recovery and how to take care of yourself with supportive language",
-  "followUp": "When to come back for your next appointment with reassurance (align with clinician follow-up)",
+  "followUp": "When to come back for your next appointment with reassurance (must align exactly with clinician follow-up timing and content - use actual numbers, not placeholders)",
   "warningSigns": "Signs and symptoms to watch out for that need immediate attention - explained with concern",
   "whenToSeekHelp": "When and how to contact your doctor or seek emergency care - with caring guidance"
 }`;
@@ -289,6 +303,140 @@ function parseFormData(formType: string, generatedText: string): Record<string, 
   const fallbackData = getDefaultFormData(formType);
   console.log('Fallback data:', fallbackData);
   return fallbackData;
+}
+
+function addCitationsToFormData(formType: string, formData: Record<string, any>, transcript: string): Record<string, any> {
+  const citations: any[] = [];
+  let citationId = 1;
+
+  // Extract consultation transcript entries
+  const transcriptEntries = extractTranscriptEntries(transcript);
+  
+  // Generate citations for each field
+  const fieldsToCite = getFieldsToCite(formType);
+  
+  fieldsToCite.forEach(field => {
+    const content = formData[field];
+    if (content && content.trim() && content !== 'Please complete based on consultation') {
+      // Find matching transcript entry
+      const matchingEntry = findMatchingTranscriptEntry(content, transcriptEntries);
+      
+      if (matchingEntry) {
+        citations.push({
+          id: citationId,
+          type: 'consultation',
+          section: getFieldDisplayName(field),
+          content: matchingEntry.content,
+          source: 'Consultation transcript',
+          timestamp: matchingEntry.timestamp
+        });
+        
+        // Add citation number to the content if it doesn't already have one
+        if (!content.includes(`[${citationId}]`)) {
+          formData[field] = content + ` [${citationId}]`;
+        }
+        
+        citationId++;
+      }
+    }
+  });
+
+  return {
+    ...formData,
+    citations: citations
+  };
+}
+
+function extractTranscriptEntries(transcript: string): any[] {
+  if (!transcript) return [];
+  
+  const entries: any[] = [];
+  const lines = transcript.split('\n');
+  
+  lines.forEach(line => {
+    const match = line.match(/\[(\d{2}:\d{2}:\d{2})\]\s+SPEAKER:\s+(.+)/);
+    if (match) {
+      entries.push({
+        timestamp: match[1],
+        content: match[2].trim()
+      });
+    }
+  });
+  
+  return entries;
+}
+
+function findMatchingTranscriptEntry(content: string, transcriptEntries: any[]): any | null {
+  if (!content || !transcriptEntries.length) return null;
+  
+  // Look for transcript entries that contain similar content
+  const contentWords = content.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+  
+  for (const entry of transcriptEntries) {
+    const entryWords = entry.content.toLowerCase().split(/\s+/);
+    const matchingWords = contentWords.filter(word => 
+      entryWords.some(entryWord => entryWord.includes(word) || word.includes(entryWord))
+    );
+    
+    // If we have a good match (at least 2 words or 50% of content words)
+    if (matchingWords.length >= Math.min(2, Math.ceil(contentWords.length * 0.5))) {
+      return entry;
+    }
+  }
+  
+  return null;
+}
+
+function getFieldsToCite(formType: string): string[] {
+  switch (formType) {
+    case 'clinician_summary':
+      return ['chiefComplaint', 'historyOfPresentIllness', 'physicalExam', 'assessment', 'plan'];
+    case 'patient_summary':
+      return ['diagnosis', 'medications', 'instructions', 'homeCare', 'recovery', 'warningSigns'];
+    default:
+      return [];
+  }
+}
+
+function getFieldDisplayName(field: string): string {
+  const fieldNames: Record<string, string> = {
+    chiefComplaint: 'Chief Complaint',
+    historyOfPresentIllness: 'History of Present Illness',
+    physicalExam: 'Physical Examination',
+    assessment: 'Assessment',
+    plan: 'Treatment Plan',
+    diagnosis: 'Diagnosis',
+    medications: 'Medications',
+    instructions: 'Medication Instructions',
+    homeCare: 'Home Care',
+    recovery: 'Recovery',
+    warningSigns: 'Warning Signs'
+  };
+  
+  return fieldNames[field] || field;
+}
+
+function cleanPlaceholderText(formData: Record<string, any>): Record<string, any> {
+  const cleaned = { ...formData };
+  
+  // Clean up common placeholder patterns
+  Object.keys(cleaned).forEach(key => {
+    if (typeof cleaned[key] === 'string') {
+      cleaned[key] = cleaned[key]
+        .replace(/\[X\]/g, '7') // Replace [X] with 7 days as default
+        .replace(/\[insert date\]/gi, '7 days')
+        .replace(/\[insert time\]/gi, '7 days')
+        .replace(/\[number\]/gi, '7')
+        .replace(/\[days\]/gi, '7 days')
+        .replace(/\[timeframe\]/gi, '7 days')
+        .replace(/\[X\] days/g, '7 days') // Handle "X days" pattern
+        .replace(/\[X\] days from today/g, '7 days from today')
+        .replace(/in \[X\] days/g, 'in 7 days')
+        .replace(/\[X\] days from today/g, '7 days from today');
+    }
+  });
+  
+  return cleaned;
 }
 
 function getDefaultFormData(formType: string): Record<string, any> {
