@@ -2,18 +2,55 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { formType, transcript, reservationId } = await request.json();
+    const { formId, transcript, reservationId } = await request.json();
 
-    if (!formType || !transcript) {
-      return NextResponse.json({ error: 'Form type and transcript are required' }, { status: 400 });
+    if (!formId || !transcript) {
+      return NextResponse.json({ error: 'Form ID and transcript are required' }, { status: 400 });
     }
 
     // Generate form data using LLM based on transcript
-    const formData = await generateFormData(formType, transcript);
+    const formData = await generateFormData(formId, transcript);
+
+    // Send WebSocket notification if reservationId is provided
+    if (reservationId) {
+      try {
+        await fetch(`http://localhost:8000/api/forms/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reservationId,
+            formId,
+            formData,
+            type: 'form_generated'
+          })
+        });
+      } catch (wsError) {
+        console.warn('Failed to send WebSocket notification:', wsError);
+      }
+    }
 
     return NextResponse.json(formData);
   } catch (error) {
     console.error('Error generating form data:', error);
+    
+    // Send error notification if reservationId is provided
+    if (reservationId) {
+      try {
+        await fetch(`http://localhost:8000/api/forms/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reservationId,
+            formId: formId || 'unknown',
+            error: 'Form generation failed',
+            type: 'form_generation_error'
+          })
+        });
+      } catch (wsError) {
+        console.warn('Failed to send WebSocket error notification:', wsError);
+      }
+    }
+    
     return NextResponse.json({ error: 'Failed to generate form data' }, { status: 500 });
   }
 }
@@ -75,61 +112,43 @@ FORM TYPE: ${formType}
 `;
 
   switch (formType) {
-    case 'diagnosis':
+    case 'clinician_summary':
       return basePrompt + `
-Generate a JSON object for a Diagnosis & Treatment Form with these fields:
+Generate a JSON object for a Clinician Summary with these fields:
 {
   "patientName": "Patient's full name",
   "dateOfBirth": "YYYY-MM-DD format",
   "mrn": "Medical record number if mentioned",
   "dateOfVisit": "Today's date in YYYY-MM-DD format",
   "provider": "Doctor's name",
-  "diagnoses": [
-    {
-      "icd10": "ICD-10 code if determinable",
-      "diagnosis": "Primary diagnosis description",
-      "notes": "Additional details"
-    }
-  ],
-  "treatments": [
-    {
-      "type": "Physical exam, Injection, Other, Vaccination, or Counseling",
-      "description": "Details of treatment provided"
-    }
-  ],
-  "followUp": "Follow-up plan and recommendations",
+  "chiefComplaint": "Primary reason for visit",
+  "historyOfPresentIllness": "Detailed description of current symptoms and their progression",
+  "pastMedicalHistory": "Relevant past medical conditions",
+  "medications": "Current medications and dosages",
+  "allergies": "Known allergies and reactions",
+  "socialHistory": "Smoking, alcohol, occupation, etc.",
+  "physicalExam": "Key physical examination findings",
+  "assessment": "Clinical assessment and differential diagnosis",
+  "plan": "Treatment plan including medications, procedures, and recommendations",
+  "followUp": "Follow-up schedule and next steps",
   "signature": "Provider signature placeholder"
 }`;
 
-    case 'prescription':
+    case 'patient_summary':
       return basePrompt + `
-Generate a JSON object for a Prescription Form with these fields:
-{
-  "patientName": "Patient's full name",
-  "dateOfBirth": "YYYY-MM-DD format",
-  "date": "Today's date in YYYY-MM-DD format",
-  "address": "Patient address if mentioned",
-  "drugName": "Medication name if prescribed",
-  "strength": "Dosage strength",
-  "form": "Tablet, Capsule, Syrup, Injection, or Other",
-  "directions": "Dosage instructions (Sig)",
-  "quantity": "Number of units",
-  "refills": "Number of refills allowed",
-  "instructions": "Special instructions or warnings"
-}`;
-
-    case 'treatment_plan':
-      return basePrompt + `
-Generate a JSON object for a Treatment Plan with these fields:
+Generate a JSON object for a Patient Summary with these fields. Use a professional but friendly, easy-to-understand tone:
 {
   "patientName": "Patient's full name",
   "date": "Today's date in YYYY-MM-DD format",
-  "diagnosis": "Primary diagnosis",
-  "treatmentGoals": "Specific treatment objectives",
-  "medications": "Prescribed medications and dosages",
-  "lifestyle": "Lifestyle recommendations",
-  "followUp": "Follow-up schedule and appointments",
-  "notes": "Additional clinical notes"
+  "diagnosis": "Your diagnosis in simple, clear terms",
+  "medications": "Your medications with clear names and purposes",
+  "instructions": "How to take your medications (when, how often, with food, etc.)",
+  "homeCare": "What you can do at home to help with your condition",
+  "recovery": "What to expect during your recovery and how to take care of yourself",
+  "followUp": "When to come back for your next appointment",
+  "warningSigns": "Signs and symptoms to watch out for that need immediate attention",
+  "whenToSeekHelp": "When and how to contact your doctor or seek emergency care",
+  "contactInfo": "How to reach your doctor's office for questions or concerns"
 }`;
 
     default:
@@ -142,10 +161,20 @@ function parseFormData(formType: string, generatedText: string): Record<string, 
     // Try to extract JSON from the response
     const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+      const jsonString = jsonMatch[0];
+      console.log('Attempting to parse JSON:', jsonString.substring(0, 200) + '...');
+      
+      // Try to fix common JSON issues
+      let cleanedJson = jsonString
+        .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+        .replace(/([{,]\s*)(\w+):/g, '$1"$2":') // Add quotes around unquoted keys
+        .replace(/:(\s*)([^",{\[\s][^,}\]]*?)(\s*[,}])/g, ': "$2"$3'); // Add quotes around unquoted string values
+      
+      return JSON.parse(cleanedJson);
     }
   } catch (error) {
     console.error('Error parsing generated form data:', error);
+    console.log('Raw generated text:', generatedText);
   }
 
   // Fallback to default data
@@ -156,44 +185,39 @@ function getDefaultFormData(formType: string): Record<string, any> {
   const today = new Date().toISOString().split('T')[0];
 
   switch (formType) {
-    case 'diagnosis':
+    case 'clinician_summary':
       return {
         patientName: 'Patient Name',
         dateOfBirth: '',
         mrn: '',
         dateOfVisit: today,
         provider: 'Dr. Smith',
-        diagnoses: [{ icd10: '', diagnosis: '', notes: '' }],
-        treatments: [{ type: 'Physical exam', description: '' }],
+        chiefComplaint: '',
+        historyOfPresentIllness: '',
+        pastMedicalHistory: '',
+        medications: '',
+        allergies: '',
+        socialHistory: '',
+        physicalExam: '',
+        assessment: '',
+        plan: '',
         followUp: '',
         signature: ''
       };
 
-    case 'prescription':
-      return {
-        patientName: 'Patient Name',
-        dateOfBirth: '',
-        date: today,
-        address: '',
-        drugName: '',
-        strength: '',
-        form: 'Tablet',
-        directions: '',
-        quantity: '',
-        refills: '',
-        instructions: ''
-      };
-
-    case 'treatment_plan':
+    case 'patient_summary':
       return {
         patientName: 'Patient Name',
         date: today,
         diagnosis: '',
-        treatmentGoals: '',
         medications: '',
-        lifestyle: '',
+        instructions: '',
+        homeCare: '',
+        recovery: '',
         followUp: '',
-        notes: ''
+        warningSigns: '',
+        whenToSeekHelp: '',
+        contactInfo: ''
       };
 
     default:

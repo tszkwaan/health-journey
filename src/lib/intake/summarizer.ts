@@ -16,9 +16,17 @@ export interface IntakeSummary {
   medical_conditions: string;
   allergies: string;
   concerns: string;
+  citations: {
+    visit_reason?: string;
+    symptom_onset?: string;
+    previous_treatment?: string;
+    medical_conditions?: string;
+    allergies?: string;
+    concerns?: string;
+  };
 }
 
-export async function summarizeIntakeData(answers: any): Promise<IntakeSummary> {
+export async function summarizeIntakeData(answers: any, transcript?: any[]): Promise<IntakeSummary> {
   try {
     // Prepare the data for LLM processing (remove personal identifiers)
     const sanitizedData = {
@@ -29,6 +37,9 @@ export async function summarizeIntakeData(answers: any): Promise<IntakeSummary> 
       allergies: answers.allergies || '',
       concerns: answers.concerns || ''
     };
+
+    // Generate citations from transcript if available
+    const citations = generateCitations(sanitizedData, transcript);
 
     // Create prompt for LLM summarization
     const prompt = `You are a medical assistant helping to summarize patient intake information. 
@@ -113,7 +124,8 @@ Return ONLY the JSON object, no other text.`;
       previous_treatment: summary.previous_treatment || 'Not specified',
       medical_conditions: summary.medical_conditions || 'Not specified',
       allergies: summary.allergies || 'Not specified',
-      concerns: summary.concerns || 'Not specified'
+      concerns: summary.concerns || 'Not specified',
+      citations: citations
     };
 
   } catch (error) {
@@ -135,6 +147,34 @@ function createFallbackSummary(answers: any): IntakeSummary {
     previous_treatment: answers.previous_treatment || 'Not specified',
     medical_conditions: answers.medical_conditions || 'Not specified',
     allergies: answers.allergies || 'Not specified',
-    concerns: answers.concerns || 'Not specified'
+    concerns: answers.concerns || 'Not specified',
+    citations: {}
   };
+}
+
+function generateCitations(sanitizedData: any, transcript?: any[]): any {
+  const citations: any = {};
+  
+  if (!transcript || transcript.length === 0) {
+    return citations;
+  }
+
+  // Find timestamps for each field by searching through transcript
+  const fields = ['visit_reason', 'symptom_onset', 'previous_treatment', 'medical_conditions', 'allergies', 'concerns'];
+  
+  fields.forEach(field => {
+    const value = sanitizedData[field];
+    if (value && value.trim()) {
+      // Find the transcript entry that contains this information
+      const matchingEntry = transcript.find(entry => 
+        entry.content && entry.content.toLowerCase().includes(value.toLowerCase().substring(0, 20))
+      );
+      
+      if (matchingEntry) {
+        citations[field] = matchingEntry.timestamp || 'Unknown time';
+      }
+    }
+  });
+
+  return citations;
 }

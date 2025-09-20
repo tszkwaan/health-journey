@@ -167,7 +167,7 @@ export default function DocumentsTab({ reservationId }: DocumentsTabProps) {
                         link.click();
                         URL.revokeObjectURL(url);
                       }}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm cursor-pointer"
                     >
                       Download JSON
                     </button>
@@ -189,7 +189,7 @@ export default function DocumentsTab({ reservationId }: DocumentsTabProps) {
                           printWindow.print();
                         }
                       }}
-                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm cursor-pointer"
                     >
                       Print
                     </button>

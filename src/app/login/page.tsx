@@ -46,7 +46,7 @@ export default function LoginPage() {
           />
           {error && <p className="text-red-600 text-sm" style={{ fontFamily: 'var(--font-noto-sans)' }}>{error}</p>}
           <button 
-            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-lg" 
+            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-lg cursor-pointer" 
             type="submit"
             style={{ fontFamily: 'var(--font-noto-sans)' }}
           >

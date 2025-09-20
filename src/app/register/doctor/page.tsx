@@ -27,7 +27,7 @@ export default function DoctorRegisterPage() {
         <input className="w-full border p-2 rounded" placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} />
         <input className="w-full border p-2 rounded" placeholder="Password" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} />
         {message && <p className="text-sm">{message}</p>}
-        <button className="w-full bg-black text-white p-2 rounded" type="submit">Register</button>
+        <button className="w-full bg-black text-white p-2 rounded cursor-pointer" type="submit">Register</button>
       </form>
     </div>
   )

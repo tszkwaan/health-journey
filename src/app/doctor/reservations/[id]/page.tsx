@@ -75,7 +75,7 @@ interface MedicalBackground {
 
 interface Reservation {
   id: string;
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+  status: 'PENDING' | 'CONFIRMED' | 'CONSULTATION' | 'COMPLETED' | 'CANCELLED';
   notes?: string;
   patient: Patient;
   timeSlot: TimeSlot;
@@ -131,7 +131,8 @@ export default function ReservationDetailPage() {
     
     setIsGeneratingIntakeSummary(true);
     try {
-      const summary = await summarizeIntakeData(answers);
+      const transcript = reservation?.intakeSession?.completeTranscript || [];
+      const summary = await summarizeIntakeData(answers, transcript);
       setIntakeSummary(summary);
     } catch (error) {
       console.error('Error generating intake summary:', error);
@@ -173,6 +174,7 @@ export default function ReservationDetailPage() {
     
     if (reservation.status === 'CANCELLED') return 'Cancelled';
     if (reservation.status === 'COMPLETED') return 'Completed';
+    if (reservation.status === 'CONSULTATION') return 'Consultation Completed';
     if (reservation.intakeSession && reservation.intakeSession.progress === 100) return 'Intake Done';
     if (reservation.intakeSession && reservation.intakeSession.progress > 0) return 'In Progress';
     return 'Intake Pending';
@@ -183,6 +185,8 @@ export default function ReservationDetailPage() {
       case 'Intake Done':
       case 'Completed':
         return 'bg-purple-100 text-purple-800';
+      case 'Consultation Completed':
+        return 'bg-green-100 text-green-800';
       case 'In Progress':
         return 'bg-blue-100 text-blue-800';
       case 'Intake Pending':
@@ -434,7 +438,7 @@ export default function ReservationDetailPage() {
             </div>
             <div className="flex items-center gap-4">
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(currentStatus)}`}>
-                <div className={`w-2 h-2 rounded-full mr-2 ${currentStatus === 'Intake Done' || currentStatus === 'Completed' ? 'bg-purple-500' : currentStatus === 'In Progress' ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
+                <div className={`w-2 h-2 rounded-full mr-2 ${currentStatus === 'Intake Done' || currentStatus === 'Completed' ? 'bg-purple-500' : currentStatus === 'Consultation Completed' ? 'bg-green-500' : currentStatus === 'In Progress' ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
                 {currentStatus}
               </span>
             </div>
@@ -732,27 +736,69 @@ export default function ReservationDetailPage() {
                                 <div className="space-y-3">
                                   <div>
                                     <span className="text-sm font-medium text-gray-700">Visit Reason:</span>
-                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.visit_reason}</p>
+                                    <p className="text-sm text-gray-600 ml-2">
+                                      {intakeSummary.visit_reason}
+                                      {intakeSummary.citations?.visit_reason && (
+                                        <span className="text-xs text-blue-600 ml-1" title={`From transcript at ${intakeSummary.citations.visit_reason}`}>
+                                          [{intakeSummary.citations.visit_reason}]
+                                        </span>
+                                      )}
+                                    </p>
                                   </div>
                                   <div>
                                     <span className="text-sm font-medium text-gray-700">Symptom Onset:</span>
-                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.symptom_onset}</p>
+                                    <p className="text-sm text-gray-600 ml-2">
+                                      {intakeSummary.symptom_onset}
+                                      {intakeSummary.citations?.symptom_onset && (
+                                        <span className="text-xs text-blue-600 ml-1" title={`From transcript at ${intakeSummary.citations.symptom_onset}`}>
+                                          [{intakeSummary.citations.symptom_onset}]
+                                        </span>
+                                      )}
+                                    </p>
                                   </div>
                                   <div>
                                     <span className="text-sm font-medium text-gray-700">Previous Treatment:</span>
-                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.previous_treatment}</p>
+                                    <p className="text-sm text-gray-600 ml-2">
+                                      {intakeSummary.previous_treatment}
+                                      {intakeSummary.citations?.previous_treatment && (
+                                        <span className="text-xs text-blue-600 ml-1" title={`From transcript at ${intakeSummary.citations.previous_treatment}`}>
+                                          [{intakeSummary.citations.previous_treatment}]
+                                        </span>
+                                      )}
+                                    </p>
                                   </div>
                                   <div>
                                     <span className="text-sm font-medium text-gray-700">Medical Conditions:</span>
-                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.medical_conditions}</p>
+                                    <p className="text-sm text-gray-600 ml-2">
+                                      {intakeSummary.medical_conditions}
+                                      {intakeSummary.citations?.medical_conditions && (
+                                        <span className="text-xs text-blue-600 ml-1" title={`From transcript at ${intakeSummary.citations.medical_conditions}`}>
+                                          [{intakeSummary.citations.medical_conditions}]
+                                        </span>
+                                      )}
+                                    </p>
                                   </div>
                                   <div>
                                     <span className="text-sm font-medium text-gray-700">Allergies:</span>
-                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.allergies}</p>
+                                    <p className="text-sm text-gray-600 ml-2">
+                                      {intakeSummary.allergies}
+                                      {intakeSummary.citations?.allergies && (
+                                        <span className="text-xs text-blue-600 ml-1" title={`From transcript at ${intakeSummary.citations.allergies}`}>
+                                          [{intakeSummary.citations.allergies}]
+                                        </span>
+                                      )}
+                                    </p>
                                   </div>
                                   <div>
                                     <span className="text-sm font-medium text-gray-700">Concerns:</span>
-                                    <p className="text-sm text-gray-600 ml-2">{intakeSummary.concerns}</p>
+                                    <p className="text-sm text-gray-600 ml-2">
+                                      {intakeSummary.concerns}
+                                      {intakeSummary.citations?.concerns && (
+                                        <span className="text-xs text-blue-600 ml-1" title={`From transcript at ${intakeSummary.citations.concerns}`}>
+                                          [{intakeSummary.citations.concerns}]
+                                        </span>
+                                      )}
+                                    </p>
                                   </div>
                                 </div>
                               </div>

@@ -7,6 +7,8 @@ import os
 
 from .stt.base import STTEvent, STTAdapter, get_stt_adapter
 from .storage import db, models, crud
+from .forms.ws import websocket_endpoint
+from .forms.ws_manager import form_ws_manager
 
 app = FastAPI(title="Voice AI Pre-Care")
 
@@ -111,6 +113,36 @@ async def ws_stt(websocket: WebSocket):
         pass
     finally:
         await adapter.aclose()
+
+
+@app.websocket("/api/forms/ws")
+async def ws_forms(websocket: WebSocket, reservation_id: str):
+    await websocket_endpoint(websocket, reservation_id)
+
+
+class FormNotification(BaseModel):
+    reservationId: str
+    formId: str
+    formData: Optional[dict] = None
+    error: Optional[str] = None
+    type: str
+
+
+@app.post("/api/forms/notify")
+async def notify_form_generation(notification: FormNotification):
+    if notification.type == "form_generated":
+        await form_ws_manager.send_form_generated(
+            notification.reservationId, 
+            notification.formId, 
+            notification.formData or {}
+        )
+    elif notification.type == "form_generation_error":
+        await form_ws_manager.send_form_error(
+            notification.reservationId, 
+            notification.formId, 
+            notification.error or "Unknown error"
+        )
+    return {"ok": True}
 
 
 

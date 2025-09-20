@@ -16,6 +16,7 @@ enum Role {
 enum ReservationStatus {
   PENDING
   CONFIRMED
+  CONSULTATION
   COMPLETED
   CANCELLED
 }
@@ -130,6 +131,7 @@ model ConsultationSession {
   // Session data
   reservationId String   @unique
   transcript   Json?    // Store the consultation transcript with timestamps
+  doctorNotes  String?  // Store doctor's notes
   isRecording  Boolean  @default(false)
   startedAt    DateTime?
   endedAt      DateTime?
