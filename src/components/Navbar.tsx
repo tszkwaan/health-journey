@@ -46,7 +46,9 @@ export default function Navbar() {
           {role === 'DOCTOR' && (
             <Link href="/doctor/appointments" className="hover:text-purple-600 transition-colors duration-200 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50">My Appointments</Link>
           )}
-          <Link href="/appointments/new" className="hover:text-purple-600 transition-colors duration-200 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50">Book Appointment</Link>
+          {role === 'PATIENT' && (
+            <Link href="/appointments/new" className="hover:text-purple-600 transition-colors duration-200 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50">Book Appointment</Link>
+          )}
         </div>
 
         {/* Right side - Notifications and User */}

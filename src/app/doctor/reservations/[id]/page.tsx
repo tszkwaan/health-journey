@@ -448,9 +448,9 @@ export default function ReservationDetailPage() {
 
       {/* Main Content */}
       <div className="w-[80%] mx-auto px-6 py-8">
-        <div className={`grid gap-8 ${activeTab === 'consultation' ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-5'}`}>
+        <div className={`grid gap-8 ${activeTab === 'consultation' || activeTab === 'documents' ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-5'}`}>
           {/* Left Column - Reservation Details */}
-          <div className={activeTab === 'consultation' ? 'col-span-1' : 'lg:col-span-2'}>
+          <div className={activeTab === 'consultation' || activeTab === 'documents' ? 'col-span-1' : 'lg:col-span-2'}>
             {/* Tabs */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
               <div className="border-b border-gray-200">
@@ -963,7 +963,7 @@ export default function ReservationDetailPage() {
           </div>
 
           {/* Right Column - Q&A Chatbot */}
-          {activeTab !== 'consultation' && (
+          {activeTab !== 'consultation' && activeTab !== 'documents' && (
             <div className="lg:col-span-3">
               <div className="bg-white rounded-2xl shadow-lg border border-purple-100 p-8 h-[80vh] flex flex-col">
                 <div className="flex justify-between items-center mb-4">

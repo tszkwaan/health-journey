@@ -11,17 +11,71 @@ interface Form {
   updatedAt: string;
 }
 
+interface FormField {
+  name: string;
+  label: string;
+  type: string;
+  required: boolean;
+  prefilled?: boolean;
+}
+
+interface FormTemplate {
+  id: string;
+  name: string;
+  description: string;
+  fields: FormField[];
+}
+
 interface DocumentsTabProps {
   reservationId: string;
 }
+
+// Form templates matching the forms page
+const FORM_TEMPLATES: FormTemplate[] = [
+  {
+    id: 'clinician_summary',
+    name: 'Clinician Summary',
+    description: 'Professional medical summary for healthcare providers',
+    fields: [
+      { name: 'patientName', label: 'Patient Name', type: 'text', required: true, prefilled: true },
+      { name: 'dateOfVisit', label: 'Date of Visit', type: 'date', required: true, prefilled: true },
+      { name: 'chiefComplaint', label: 'Chief Complaint', type: 'textarea', required: true },
+      { name: 'historyOfPresentIllness', label: 'History of Present Illness', type: 'textarea', required: true },
+      { name: 'physicalExam', label: 'Physical Examination', type: 'textarea', required: false },
+      { name: 'assessment', label: 'Assessment', type: 'textarea', required: true },
+      { name: 'plan', label: 'Treatment Plan', type: 'textarea', required: true },
+      { name: 'followUp', label: 'Follow-Up Plan', type: 'textarea', required: false }
+    ]
+  },
+  {
+    id: 'patient_summary',
+    name: 'Patient Summary',
+    description: 'Caring patient-friendly summary with care instructions',
+    fields: [
+      { name: 'patientName', label: 'Patient Name', type: 'text', required: true, prefilled: true },
+      { name: 'date', label: 'Date', type: 'date', required: true, prefilled: true },
+      { name: 'diagnosis', label: 'Your Diagnosis', type: 'textarea', required: true },
+      { name: 'medications', label: 'Your Medications', type: 'textarea', required: false },
+      { name: 'instructions', label: 'Medication Instructions', type: 'textarea', required: false },
+      { name: 'homeCare', label: 'Home Care Instructions', type: 'textarea', required: true },
+      { name: 'recovery', label: 'Recovery Instructions', type: 'textarea', required: true },
+      { name: 'followUp', label: 'Follow-Up Plan', type: 'textarea', required: true },
+      { name: 'warningSigns', label: 'Warning Signs to Watch For', type: 'textarea', required: true },
+      { name: 'whenToSeekHelp', label: 'When to Seek Help', type: 'textarea', required: true }
+    ]
+  }
+];
 
 export default function DocumentsTab({ reservationId }: DocumentsTabProps) {
   const [forms, setForms] = useState<Form[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
+  const [patientInfo, setPatientInfo] = useState<any>(null);
+  const [doctorInfo, setDoctorInfo] = useState<any>(null);
 
   useEffect(() => {
     fetchForms();
+    loadPatientAndDoctorInfo();
   }, [reservationId]);
 
   const fetchForms = async () => {
@@ -29,7 +83,8 @@ export default function DocumentsTab({ reservationId }: DocumentsTabProps) {
       const response = await fetch(`/api/reservations/${reservationId}/forms`);
       if (response.ok) {
         const data = await response.json();
-        setForms(data.forms || []);
+        console.log('Fetched forms data:', data);
+        setForms(data || []);
       } else {
         console.error('Failed to fetch forms');
       }
@@ -40,24 +95,69 @@ export default function DocumentsTab({ reservationId }: DocumentsTabProps) {
     }
   };
 
-  const getFormTypeDisplayName = (formType: string): string => {
-    const typeMap: Record<string, string> = {
-      'diagnosis': 'Diagnosis & Treatment Form',
-      'prescription': 'Prescription Form',
-      'treatment_plan': 'Treatment Plan'
-    };
-    return typeMap[formType] || formType;
+  const loadPatientAndDoctorInfo = async () => {
+    try {
+      const response = await fetch(`/api/reservations/${reservationId}`);
+      if (response.ok) {
+        const reservation = await response.json();
+        setPatientInfo(reservation.patient);
+        setDoctorInfo(reservation.doctor);
+      }
+    } catch (error) {
+      console.error('Error loading patient and doctor info:', error);
+    }
   };
 
-  const formatFormData = (formData: any): string => {
-    if (!formData) return 'No data available';
+  const getFormTypeDisplayName = (formType: string): string => {
+    const template = FORM_TEMPLATES.find(t => t.id === formType);
+    return template?.name || formType;
+  };
+
+  const getFormTemplate = (formType: string): FormTemplate | undefined => {
+    return FORM_TEMPLATES.find(t => t.id === formType);
+  };
+
+  // Get display value for a field (similar to forms page)
+  const getDisplayValue = (fieldName: string, field: any, formData: any) => {
+    // For specific fields, always check patient/doctor info first
+    if (fieldName === 'patientName') return patientInfo?.name || 'Not specified';
+    if (fieldName === 'dateOfVisit' || fieldName === 'date') {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
     
-    const entries = Object.entries(formData)
-      .filter(([key, value]) => value && value !== '')
-      .map(([key, value]) => `${key}: ${value}`)
-      .join('\n');
+    // For other fields, get from form data
+    return formData[fieldName] || '';
+  };
+
+  // Format field value for display
+  const formatFieldValue = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') {
+      return JSON.stringify(value, null, 2);
+    }
+    return String(value);
+  };
+
+  // Render text with citations (similar to forms page)
+  const renderTextWithCitations = (text: string) => {
+    if (!text) return '';
     
-    return entries || 'No data available';
+    // Simple citation rendering - look for [1], [2], etc.
+    const parts = text.split(/(\[\d+\])/g);
+    return parts.map((part, index) => {
+      if (part.match(/^\[\d+\]$/)) {
+        return (
+          <span key={index} className="text-blue-600 font-medium cursor-pointer hover:underline">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
   };
 
   if (loading) {
@@ -114,30 +214,18 @@ export default function DocumentsTab({ reservationId }: DocumentsTabProps) {
                         Created: {new Date(form.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      {form.isGenerated && (
-                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                          AI Generated
-                        </span>
-                      )}
-                      {form.isCompleted && (
-                        <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-                          Completed
-                        </span>
-                      )}
-                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Form Preview */}
+          {/* Form Preview - Similar to edit form page */}
           <div className="space-y-4">
             <h4 className="text-md font-medium text-gray-900">Form Preview</h4>
             {selectedForm ? (
               <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <div className="mb-4">
+                <div className="mb-6">
                   <h5 className="text-lg font-semibold text-gray-900 mb-2">
                     {getFormTypeDisplayName(selectedForm.formType)}
                   </h5>
@@ -147,41 +235,100 @@ export default function DocumentsTab({ reservationId }: DocumentsTabProps) {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h6 className="font-medium text-gray-900 mb-2">Form Data:</h6>
-                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
-                      {formatFormData(selectedForm.formData)}
-                    </pre>
-                  </div>
+                {/* Form Fields - Similar to edit form page */}
+                <div className="space-y-6">
+                  {(() => {
+                    const template = getFormTemplate(selectedForm.formType);
+                    if (!template) return null;
 
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => {
-                        const dataStr = JSON.stringify(selectedForm.formData, null, 2);
-                        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                        const url = URL.createObjectURL(dataBlob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = `${selectedForm.formType}_${selectedForm.id}.json`;
-                        link.click();
-                        URL.revokeObjectURL(url);
-                      }}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm cursor-pointer"
-                    >
-                      Download JSON
-                    </button>
-                    
+                    return template.fields.map((field) => {
+                      const value = getDisplayValue(field.name, field, selectedForm.formData);
+                      const displayValue = formatFieldValue(value);
+
+                      return (
+                        <div key={field.name} className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          </label>
+                          
+                          {field.type === 'textarea' ? (
+                            <div className="relative">
+                              <textarea
+                                value={displayValue}
+                                readOnly
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-700 resize-none"
+                                rows={4}
+                                style={{ minHeight: '100px' }}
+                              />
+                              {/* Citations display */}
+                              {displayValue && (
+                                <div className="mt-2 text-sm text-gray-600">
+                                  {renderTextWithCitations(displayValue)}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <input
+                              type={field.type}
+                              value={displayValue}
+                              readOnly
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-700"
+                            />
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
+
+                  {/* References Section */}
+                  {selectedForm.formData && (
+                    <div className="mt-8 pt-6 border-t border-gray-200">
+                      <h6 className="text-sm font-medium text-gray-900 mb-3">References</h6>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p>[1] Consultation transcript - Patient interview</p>
+                        <p>[2] Medical literature - PubMed research</p>
+                        <p>[3] Clinical guidelines - Standard practice</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center space-x-3 pt-6 border-t border-gray-200">
                     <button
                       onClick={() => {
                         const printWindow = window.open('', '_blank');
                         if (printWindow) {
+                          const template = getFormTemplate(selectedForm.formType);
+                          const formContent = template?.fields.map(field => {
+                            const value = getDisplayValue(field.name, field, selectedForm.formData);
+                            return `${field.label}: ${formatFieldValue(value)}`;
+                          }).join('\n\n') || '';
+                          
                           printWindow.document.write(`
                             <html>
-                              <head><title>${getFormTypeDisplayName(selectedForm.formType)}</title></head>
+                              <head>
+                                <title>${getFormTypeDisplayName(selectedForm.formType)}</title>
+                                <style>
+                                  body { font-family: Arial, sans-serif; margin: 20px; }
+                                  h1 { color: #333; border-bottom: 2px solid #7c3aed; padding-bottom: 10px; }
+                                  .field { margin-bottom: 15px; }
+                                  .label { font-weight: bold; color: #555; }
+                                  .value { margin-top: 5px; white-space: pre-wrap; }
+                                </style>
+                              </head>
                               <body>
                                 <h1>${getFormTypeDisplayName(selectedForm.formType)}</h1>
-                                <pre>${formatFormData(selectedForm.formData)}</pre>
+                                <div class="field">
+                                  <div class="label">Created:</div>
+                                  <div class="value">${new Date(selectedForm.createdAt).toLocaleDateString()}</div>
+                                </div>
+                                <div class="field">
+                                  <div class="label">Updated:</div>
+                                  <div class="value">${new Date(selectedForm.updatedAt).toLocaleDateString()}</div>
+                                </div>
+                                <hr style="margin: 20px 0;">
+                                <pre style="white-space: pre-wrap; font-family: Arial, sans-serif;">${formContent}</pre>
                               </body>
                             </html>
                           `);

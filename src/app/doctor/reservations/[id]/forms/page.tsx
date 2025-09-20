@@ -17,13 +17,9 @@ const FORM_TEMPLATES: FormTemplate[] = [
     description: 'Professional medical summary for healthcare providers',
     fields: [
       { name: 'patientName', label: 'Patient Name', type: 'text', required: true, prefilled: true },
-      { name: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: true, prefilled: true },
       { name: 'dateOfVisit', label: 'Date of Visit', type: 'date', required: true, prefilled: true },
       { name: 'chiefComplaint', label: 'Chief Complaint', type: 'textarea', required: true },
       { name: 'historyOfPresentIllness', label: 'History of Present Illness', type: 'textarea', required: true },
-      { name: 'pastMedicalHistory', label: 'Past Medical History', type: 'textarea', required: false, prefilled: true },
-      { name: 'medications', label: 'Current Medications', type: 'textarea', required: false },
-      { name: 'allergies', label: 'Allergies', type: 'textarea', required: false, prefilled: true },
       { name: 'physicalExam', label: 'Physical Examination', type: 'textarea', required: false },
       { name: 'assessment', label: 'Assessment', type: 'textarea', required: true },
       { name: 'plan', label: 'Treatment Plan', type: 'textarea', required: true },
@@ -62,46 +58,10 @@ export default function FormsPage() {
   const [generatedForms, setGeneratedForms] = useState<Record<string, any>>({});
   const [formUpdates, setFormUpdates] = useState<Record<string, any>>({});
   const [generationStatus, setGenerationStatus] = useState<Record<string, 'pending' | 'generating' | 'completed' | 'error'>>({});
-  const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const [patientInfo, setPatientInfo] = useState<any>(null);
   const [doctorInfo, setDoctorInfo] = useState<any>(null);
   const [formsGenerated, setFormsGenerated] = useState<boolean>(false);
   const [isRegenerating, setIsRegenerating] = useState<boolean>(false);
-
-  // Initialize WebSocket connection for form generation updates
-  useEffect(() => {
-    const ws = new WebSocket(`ws://localhost:8000/api/forms/ws?reservationId=${reservationId}`);
-    
-    ws.onopen = () => {
-      console.log('WebSocket connected for form generation');
-      setWsConnection(ws);
-    };
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'form_generated') {
-        setGeneratedForms(prev => ({ ...prev, [data.formId]: data.formData }));
-        setGenerationStatus(prev => ({ ...prev, [data.formId]: 'completed' }));
-        
-        // If this is the currently selected form, update the form data
-        if (selectedForm === data.formId) {
-          const savedUpdates = formUpdates[data.formId] || {};
-          setFormData({ ...data.formData, ...savedUpdates });
-        }
-      } else if (data.type === 'form_generation_error') {
-        setGenerationStatus(prev => ({ ...prev, [data.formId]: 'error' }));
-      }
-    };
-    
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      setWsConnection(null);
-    };
-    
-    return () => {
-      ws.close();
-    };
-  }, [reservationId, selectedForm, formUpdates]);
 
   // Load existing forms and auto-generate on component mount
   useEffect(() => {
@@ -143,14 +103,8 @@ export default function FormsPage() {
     const prefilledData = { ...generatedData };
 
     if (patientInfo) {
-      prefilledData.patientName = patientInfo.name || 'Not specified';
-      prefilledData.dateOfBirth = patientInfo.dateOfBirth || 'Not specified';
-      
-      // Pre-fill past medical history and allergies from patient data
-      if (patientInfo.medicalBackground) {
-        prefilledData.pastMedicalHistory = patientInfo.medicalBackground.pastMedicalHistory || '';
-        prefilledData.allergies = patientInfo.medicalBackground.allergies || '';
-      }
+      // Always set patient name
+      prefilledData.patientName = patientInfo.name || '';
     }
 
 
@@ -446,54 +400,66 @@ export default function FormsPage() {
   // Save forms
   const saveForms = async () => {
     try {
-      const response = await fetch(`/api/reservations/${reservationId}/forms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          forms: selectedForms.map(formId => ({
+      // Save each form individually
+      const savePromises = selectedForms.map(async (formId) => {
+        const response = await fetch(`/api/reservations/${reservationId}/forms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             formType: formId,
             formData: {
               ...generatedForms[formId],
               ...formUpdates[formId]
-            }
-          }))
-        })
+            },
+            isGenerated: true,
+            isCompleted: true
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to save ${formId} form`);
+        }
+
+        return response.json();
       });
 
-      if (response.ok) {
-        alert('Forms saved successfully!');
-        // Navigate back to reservation page
-        window.close();
-      } else {
-        console.error('Failed to save forms');
-      }
+      await Promise.all(savePromises);
+      alert('Forms saved successfully!');
+      // Navigate back to reservation page
+      window.close();
     } catch (error) {
       console.error('Error saving forms:', error);
+      alert('Failed to save forms. Please try again.');
     }
   };
 
   const currentForm = selectedForm ? FORM_TEMPLATES.find(f => f.id === selectedForm) : null;
   
-  // Get pre-filled data for display
+  // Get display value for fields (editable)
   const getDisplayValue = (fieldName: string, field: any) => {
-    if (field.prefilled) {
-      // For pre-filled fields, get from patient/doctor info
-      if (fieldName === 'patientName') return patientInfo?.name || 'Not specified';
-      if (fieldName === 'dateOfBirth') return patientInfo?.dateOfBirth || 'Not specified';
-      if (fieldName === 'dateOfVisit' || fieldName === 'date') {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      }
-      if (fieldName === 'pastMedicalHistory') return patientInfo?.medicalBackground?.pastMedicalHistory || '';
-      if (fieldName === 'allergies') return patientInfo?.medicalBackground?.allergies || '';
-    }
-    // For non-prefilled fields, get from generated forms or updates
-    const formData = selectedForm ? (generatedForms[selectedForm] || {}) : {};
+    // First check if there are user updates
     const updateData = selectedForm ? (formUpdates[selectedForm] || {}) : {};
-    return updateData[fieldName] || formData[fieldName] || '';
+    if (updateData[fieldName] !== undefined) {
+      return updateData[fieldName];
+    }
+    
+    // Then check generated form data
+    const formData = selectedForm ? (generatedForms[selectedForm] || {}) : {};
+    if (formData[fieldName] !== undefined) {
+      return formData[fieldName];
+    }
+    
+    // For specific fields, always check patient/doctor info
+    if (fieldName === 'patientName') return patientInfo?.name || '';
+    if (fieldName === 'dateOfVisit' || fieldName === 'date') {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    return '';
   };
 
   return (
@@ -636,11 +602,8 @@ export default function FormsPage() {
                           <input
                             type="text"
                             value={formatFieldValue(getDisplayValue(field.name, field))}
-                            onChange={field.prefilled ? undefined : (e) => handleFieldChange(field.name, e.target.value)}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                              field.prefilled ? 'bg-gray-100 cursor-not-allowed' : ''
-                            }`}
-                            readOnly={field.prefilled}
+                            onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         )}
                         
@@ -648,11 +611,8 @@ export default function FormsPage() {
                           <input
                             type="date"
                             value={formatFieldValue(getDisplayValue(field.name, field))}
-                            onChange={field.prefilled ? undefined : (e) => handleFieldChange(field.name, e.target.value)}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                              field.prefilled ? 'bg-gray-100 cursor-not-allowed' : ''
-                            }`}
-                            readOnly={field.prefilled}
+                            onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         )}
                         
@@ -660,12 +620,9 @@ export default function FormsPage() {
                           <div className="relative">
                             <textarea
                               value={formatFieldValue(getDisplayValue(field.name, field))}
-                              onChange={field.prefilled ? undefined : (e) => handleFieldChange(field.name, e.target.value)}
+                              onChange={(e) => handleFieldChange(field.name, e.target.value)}
                               rows={3}
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                                field.prefilled ? 'bg-gray-100 cursor-not-allowed' : ''
-                              }`}
-                              readOnly={field.prefilled}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             />
                           </div>
                         )}

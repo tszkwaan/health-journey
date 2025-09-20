@@ -11,46 +11,9 @@ export async function POST(request: NextRequest) {
     // Generate form data using LLM based on transcript
     const formData = await generateFormData(formId, transcript, clinicianSummary);
 
-    // Send WebSocket notification if reservationId is provided
-    if (reservationId) {
-      try {
-        await fetch(`http://localhost:8000/api/forms/notify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            reservationId,
-            formId,
-            formData,
-            type: 'form_generated'
-          })
-        });
-      } catch (wsError) {
-        console.warn('Failed to send WebSocket notification:', wsError);
-      }
-    }
-
     return NextResponse.json(formData);
   } catch (error) {
     console.error('Error generating form data:', error);
-    
-    // Send error notification if reservationId is provided
-    if (reservationId) {
-      try {
-        await fetch(`http://localhost:8000/api/forms/notify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            reservationId,
-            formId: formId || 'unknown',
-            error: 'Form generation failed',
-            type: 'form_generation_error'
-          })
-        });
-      } catch (wsError) {
-        console.warn('Failed to send WebSocket error notification:', wsError);
-      }
-    }
-    
     return NextResponse.json({ error: 'Failed to generate form data' }, { status: 500 });
   }
 }
