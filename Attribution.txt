@@ -2,6 +2,8 @@
 
 This document provides attributions for third-party libraries, models, and data sources used in the HealthFirst Healthcare Platform, along with their respective licenses.
 
+**Total Dependencies**: 34 libraries, services, and standards
+
 ## Frontend Libraries and Frameworks
 
 ### Core Framework
@@ -147,55 +149,24 @@ This document provides attributions for third-party libraries, models, and data 
     - **Source**: https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API
     - **Note**: Implementation varies by browser (Chrome, Firefox, Safari, Edge)
 
-28. **MediaRecorder API**
-    - **Description**: Provides functionality to easily record media
-    - **License**: Varies by browser implementation
-    - **Source**: https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder
-    - **Note**: Implementation varies by browser
 
 ## Database and Infrastructure
 
-29. **PostgreSQL**
+28. **PostgreSQL**
     - **Description**: Open-source relational database management system
     - **License**: PostgreSQL License (similar to MIT)
     - **Source**: https://www.postgresql.org/
     - **License URL**: https://github.com/postgres/postgres/blob/master/COPYRIGHT
 
-30. **Docker**
+29. **Docker**
     - **Description**: Platform for developing, shipping, and running applications in containers
     - **License**: Apache License 2.0
     - **Source**: https://www.docker.com/
     - **License URL**: https://github.com/docker/docker/blob/master/LICENSE
 
-## Medical Data Standards and References
+## Medical Data Services
 
-31. **ICD-10 Codes**
-    - **Description**: International Classification of Diseases, 10th Revision
-    - **License**: Public Domain
-    - **Source**: https://www.cdc.gov/nchs/icd/icd10.htm
-    - **Note**: Used for medical coding and classification
-
-32. **SNOMED CT**
-    - **Description**: Systematized Nomenclature of Medicine Clinical Terms
-    - **License**: Free for use in member countries; license required elsewhere
-    - **Source**: https://www.snomed.org/
-    - **Note**: Used for clinical terminology
-
-33. **LOINC**
-    - **Description**: Logical Observation Identifiers Names and Codes
-    - **License**: Public Domain
-    - **Source**: https://loinc.org/
-    - **Note**: Used for laboratory and clinical observations
-
-34. **FHIR (Fast Healthcare Interoperability Resources)**
-    - **Description**: Standard for exchanging electronic health records
-    - **License**: Creative Commons Attribution 4.0 International License
-    - **Source**: https://www.hl7.org/fhir/
-    - **Note**: Used for healthcare data interoperability
-
-## External Data Services
-
-35. **PubMed API**
+30. **PubMed API**
     - **Description**: National Library of Medicine's database of biomedical literature
     - **License**: Public Domain
     - **Source**: https://pubmed.ncbi.nlm.nih.gov/
@@ -203,13 +174,13 @@ This document provides attributions for third-party libraries, models, and data 
 
 ## Security and Compliance
 
-36. **AES-256-GCM Encryption**
+31. **AES-256-GCM Encryption**
     - **Description**: Advanced Encryption Standard with Galois/Counter Mode
     - **License**: Public Domain (NIST Standard)
     - **Source**: https://csrc.nist.gov/publications/detail/sp/800-38d/final
     - **Note**: Used for data encryption at rest
 
-37. **TLS 1.3**
+32. **TLS 1.3**
     - **Description**: Transport Layer Security protocol
     - **License**: Public Domain (IETF Standard)
     - **Source**: https://tools.ietf.org/html/rfc8446
@@ -217,13 +188,13 @@ This document provides attributions for third-party libraries, models, and data 
 
 ## Fonts and Typography
 
-38. **Noto Sans**
+33. **Noto Sans**
     - **Description**: Google's font family for international languages
     - **License**: Open Font License
     - **Source**: https://fonts.google.com/noto
     - **License URL**: https://scripts.sil.org/OFL
 
-39. **Geist Font**
+34. **Geist Font**
     - **Description**: Vercel's font family
     - **License**: MIT License
     - **Source**: https://vercel.com/font
@@ -231,20 +202,20 @@ This document provides attributions for third-party libraries, models, and data 
 
 ## Icons and Graphics
 
-40. **Heroicons**
-    - **Description**: Beautiful hand-crafted SVG icons
-    - **License**: MIT License
-    - **Source**: https://heroicons.com/
-    - **License URL**: https://github.com/tailwindlabs/heroicons/blob/master/LICENSE
+35. **Custom SVG Icons**
+    - **Description**: Custom SVG icons for UI elements
+    - **License**: MIT License (part of this project)
+    - **Source**: Local implementation in components
+    - **Note**: Custom-designed SVG icons for forms, documents, and UI elements
 
 ## License Summary
 
 This project uses a combination of:
-- **MIT License**: Most frontend libraries and utilities
-- **Apache License 2.0**: Database tools, AI frameworks, and some utilities
-- **ISC License**: Authentication library
-- **Public Domain**: Medical standards and web standards
-- **Open Font License**: Typography
+- **MIT License**: Most frontend libraries and utilities (Next.js, React, Tailwind CSS, etc.)
+- **Apache License 2.0**: Database tools (Prisma)
+- **ISC License**: Authentication library (NextAuth.js)
+- **Public Domain**: Medical standards (PubMed API) and web standards (Web Speech API)
+- **Open Font License**: Typography (Geist Font)
 
 ## Compliance Notes
 
@@ -254,15 +225,17 @@ This project uses a combination of:
 
 3. **Commercial Use**: All components used in this project allow commercial use as per their respective licenses.
 
-4. **Medical Data Compliance**: The project adheres to medical data standards (ICD-10, SNOMED CT, LOINC, FHIR) for healthcare interoperability.
+4. **Medical Data Compliance**: The project uses PubMed API for medical literature search and RAG (Retrieval-Augmented Generation) to enhance form generation with evidence-based medical information.
 
-5. **Security Standards**: The project implements industry-standard encryption (AES-256-GCM, TLS 1.3) for data protection.
+5. **Security Standards**: The project implements industry-standard encryption (AES-256-GCM, TLS 1.3) for data protection and includes comprehensive audit logging and consent management.
 
-6. **Local Processing**: All AI processing is done locally using browser APIs and local LLM services, with no external AI API dependencies.
+6. **Local Processing**: All AI processing is done locally using browser APIs (Web Speech API) and local LLM services, with no external AI API dependencies.
 
 ## Contact
 
 For questions regarding third-party component usage or licensing, please contact the development team.
+
+**Project Repository**: https://github.com/tszkwaan/health-journey
 
 ---
 
