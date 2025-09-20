@@ -1,0 +1,232 @@
+onte<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Input Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #E6DFFF 0%, #DDE9FF 50%, #F9FBFF 100%);
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #6f42c1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover { background: #5a32a3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .transcript {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            min-height: 100px;
+            border: 1px solid #dee2e6;
+        }
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Voice Input Test</h1>
+        <p>Test the Whisper WebSocket integration for real-time voice transcription.</p>
+        
+        <div id="status" class="status info">Ready to test</div>
+        
+        <div>
+            <button id="connectBtn" onclick="connectWebSocket()">Connect to WebSocket</button>
+            <button id="startBtn" onclick="startRecording()" disabled>Start Recording</button>
+            <button id="stopBtn" onclick="stopRecording()" disabled>Stop Recording</button>
+            <button id="disconnectBtn" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+        </div>
+        
+        <div>
+            <h3>Live Transcript:</h3>
+            <div id="transcript" class="transcript">No transcription yet...</div>
+        </div>
+        
+        <div>
+            <h3>Event Log:</h3>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function updateButtons(connected, recording) {
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('startBtn').disabled = !connected || recording;
+            document.getElementById('stopBtn').disabled = !recording;
+            document.getElementById('disconnectBtn').disabled = !connected;
+        }
+
+        async function connectWebSocket() {
+            try {
+                updateStatus('Connecting to WebSocket...', 'info');
+                log('Attempting to connect to WebSocket...');
+                
+                ws = new WebSocket('ws://localhost:8001/api/voice/ws/stt?sessionId=test-session-123');
+                
+                ws.onopen = function(event) {
+                    updateStatus('Connected to WebSocket!', 'success');
+                    log('WebSocket connected successfully');
+                    updateButtons(true, false);
+                };
+                
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    log(`Received: ${JSON.stringify(data)}`);
+                    
+                    if (data.type === 'partial_transcript') {
+                        document.getElementById('transcript').textContent = data.text;
+                    } else if (data.type === 'final_transcript') {
+                        document.getElementById('transcript').textContent = data.text;
+                        log(`Final transcript: ${data.text}`);
+                    } else if (data.type === 'connected') {
+                        log('WebSocket connection confirmed');
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    updateStatus('WebSocket error occurred', 'error');
+                    log(`WebSocket error: ${error}`);
+                };
+                
+                ws.onclose = function(event) {
+                    updateStatus('WebSocket disconnected', 'error');
+                    log(`WebSocket closed: ${event.code} - ${event.reason}`);
+                    updateButtons(false, false);
+                };
+                
+            } catch (error) {
+                updateStatus(`Connection failed: ${error.message}`, 'error');
+                log(`Connection error: ${error.message}`);
+            }
+        }
+
+        async function startRecording() {
+            try {
+                updateStatus('Starting recording...', 'info');
+                log('Requesting microphone access...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    } 
+                });
+                
+                log('Microphone access granted');
+                
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        // Send audio data to WebSocket
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(event.data);
+                            log(`Sent audio chunk: ${event.data.size} bytes`);
+                        }
+                    }
+                };
+                
+                mediaRecorder.onstop = function() {
+                    log('Recording stopped');
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.start(100); // Send data every 100ms
+                isRecording = true;
+                updateStatus('Recording... Click Stop when done', 'success');
+                updateButtons(true, true);
+                log('Recording started');
+                
+            } catch (error) {
+                updateStatus(`Recording failed: ${error.message}`, 'error');
+                log(`Recording error: ${error.message}`);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                updateStatus('Recording stopped', 'info');
+                updateButtons(true, false);
+                log('Recording stopped by user');
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                updateStatus('Disconnected from WebSocket', 'info');
+                updateButtons(false, false);
+                log('WebSocket disconnected by user');
+            }
+        }
+
+        // Initialize
+        updateButtons(false, false);
+        log('Voice input test page loaded');
+    </script>
+</body>
+</html>

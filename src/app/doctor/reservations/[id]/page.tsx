@@ -727,24 +727,6 @@ export default function ReservationDetailPage() {
                               </div>
                             ) : intakeSummary ? (
                               <div className="space-y-4">
-                                {/* Patient Information */}
-                                <div className="border-b border-gray-200 pb-3">
-                                  <h4 className="text-md font-semibold text-gray-800 mb-2">Patient Information</h4>
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                    <div>
-                                      <span className="font-medium text-gray-700">Name:</span>
-                                      <p className="text-gray-600">{intakeSummary.patient_info.name}</p>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-700">Date of Birth:</span>
-                                      <p className="text-gray-600">{intakeSummary.patient_info.dob}</p>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-700">Phone:</span>
-                                      <p className="text-gray-600">{intakeSummary.patient_info.phone}</p>
-                                    </div>
-                                  </div>
-                                </div>
 
                                 {/* Visit Information */}
                                 <div className="space-y-3">

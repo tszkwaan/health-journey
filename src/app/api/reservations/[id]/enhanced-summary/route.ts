@@ -97,7 +97,16 @@ export async function POST(
       return NextResponse.json({ error: 'Incomplete data for summary generation' }, { status: 400 });
     }
 
-    // Always generate a fresh summary when requested
+    // Check if enhanced summary already exists
+    if (medicalBackground.enhancedSummary) {
+      console.log('Enhanced summary already exists for reservation:', id);
+      return NextResponse.json({ 
+        message: 'Enhanced summary already exists',
+        enhancedSummary: medicalBackground.enhancedSummary 
+      });
+    }
+
+    // Generate fresh summary only if one doesn't exist
     console.log('Generating fresh enhanced summary for reservation:', id);
     const enhancedSummary = await generateEnhancedSummary(medicalBackground, intakeAnswers, reservation.patient);
 
