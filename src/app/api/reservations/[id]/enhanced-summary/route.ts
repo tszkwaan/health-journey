@@ -214,13 +214,14 @@ function prepareSourceData(medicalBackground: any, intakeAnswers: any, patient: 
     });
   }
 
-  // Main Complaint
-  if (intakeAnswers.main_complaint) {
+  // Main Complaint / Visit Reason
+  const visitReason = intakeAnswers.visit_reason || intakeAnswers.main_complaint;
+  if (visitReason) {
     sources.push({
       id: citationId++,
       type: 'intake',
-      section: 'Main Complaint',
-      content: intakeAnswers.main_complaint,
+      section: 'Visit Reason',
+      content: visitReason,
       source: 'Pre-care intake session'
     });
   }
@@ -384,26 +385,27 @@ PATIENT DATA SOURCES:
 
   prompt += `\n\nCRITICAL ANTI-HALLUCINATION RULES:
 1. For patient data sections: ONLY use information explicitly provided in the patient sources above
-2. For symptoms: ONLY use the exact visit reason provided (e.g., if visit reason is "fever", symptoms should be "fever", not "nausea" or anything else)
-3. For AI Diagnosis: Generate realistic differential diagnoses based on the visit reason and medical history
-4. For AI Suggestions: Generate specific, actionable questions and tests based on the visit reason
-5. DO NOT add symptoms, conditions, or details not mentioned in patient sources
-6. If patient information is missing, write "Not provided" or "Unknown"
-7. Use exact wording from sources when possible
-8. NEVER invent or assume symptoms - only use what is explicitly stated
-9. For medications: Only include medications that are relevant to the current visit reason or explicitly mentioned
+2. For symptoms: ONLY use the exact visit reason provided - if visit reason is "headache", symptoms must be "headache" and nothing else
+3. For currentVisitReason: Use ONLY the exact visit reason from intake sources
+4. For AI Diagnosis: Generate realistic differential diagnoses based ONLY on the visit reason and medical history provided
+5. For AI Suggestions: Generate specific, actionable questions and tests based ONLY on the visit reason
+6. DO NOT add symptoms, conditions, or details not mentioned in patient sources
+7. If patient information is missing, write "Not provided" or "Unknown"
+8. Use exact wording from sources when possible
+9. NEVER invent or assume symptoms - only use what is explicitly stated
+10. For medications: Only include medications that are explicitly mentioned in medical history
+11. DO NOT add generic medical advice or common symptoms not mentioned in sources
+12. If visit reason is "headache", symptoms must be "headache" - do not add "fever", "fatigue", or other symptoms unless explicitly mentioned
+13. DO NOT use medical history conditions as current symptoms unless they are the visit reason
+14. DO NOT assume common symptoms associated with conditions - only use what is explicitly stated
 
-EXAMPLE: If visit reason is "fever", then:
-- symptoms: "fever" (NOT "lobster allergy" or anything else)
-- currentVisitReason: "fever"
-- aiDiagnosis: should be about fever-related conditions
-- aiSuggestions: should be about fever-related questions and tests
+STRICT RULE: The "symptoms" field must contain ONLY the visit reason from intake sources, nothing else.
 
 Generate a structured summary in JSON format. Return ONLY the JSON object:
 
 {
   "currentSituation": {
-    "symptoms": "ONLY the exact visit reason from intake sources - if visit reason is 'fever' then symptoms must be 'fever', NOT allergies or anything else [2]",
+    "symptoms": "ONLY the exact visit reason from intake sources - if visit reason is 'headache' then symptoms must be 'headache', NOT diabetes or anything else [2]",
     "onset": "ONLY onset information from intake sources [2]",
     "timing": "ONLY timing information from intake sources [2]",
     "severity": "ONLY severity information from intake sources [2]",
@@ -421,13 +423,13 @@ Generate a structured summary in JSON format. Return ONLY the JSON object:
     "familyMedicalHistory": "ONLY family history explicitly mentioned [7]"
   },
   "aiDiagnosis": {
-    "possibleDifferentialDiagnoses": "viral infection, bacterial infection, medication side effects, allergic reaction, or other fever-causing conditions [1]",
+    "possibleDifferentialDiagnoses": "Based on visit reason and medical history - generate realistic differential diagnoses [1]",
     "disclaimer": "Note: AI analysis based on medical research and limited patient information - requires clinical confirmation [1]"
   },
   "aiSuggestions": {
-    "suggestedFollowUpQuestions": "temperature, duration, associated symptoms, recent exposures, medication history [2]",
-    "recommendedTestsExaminations": "temperature measurement, complete blood count, urinalysis, chest X-ray, blood cultures [2]",
-    "safetyNotesDisclaimer": "monitor for high fever, signs of dehydration, severe headache, neck stiffness [2]"
+    "suggestedFollowUpQuestions": "Based on visit reason - generate specific follow-up questions [2]",
+    "recommendedTestsExaminations": "Based on visit reason - generate specific recommended tests [2]",
+    "safetyNotesDisclaimer": "Based on visit reason - generate specific safety monitoring notes [2]"
   }
 }
 
@@ -462,11 +464,17 @@ function validateLLMResponse(summaryText: string, sources: any[]) {
     
     // Check for common hallucination patterns
     const hallucinationPatterns = [
-      'fever, headache, fatigue', // Common false symptoms
-      'liver disease', // Common false condition
       'viral infection', // Common false diagnosis
+      'bacterial infection', // Common false diagnosis
+      'headache', // Common false symptom
+      'fatigue', // Common false symptom
+      'nausea', // Common false symptom
       'moderate severity', // Common false severity
       'throughout the day', // Common false timing
+      'liver disease', // Common false condition
+      'stroke', // Common false condition
+      'diabetes', // Common false condition
+      'hypertension', // Common false condition
     ];
     
     for (const pattern of hallucinationPatterns) {
@@ -483,6 +491,22 @@ function validateLLMResponse(summaryText: string, sources: any[]) {
     for (const condition of medicalConditions) {
       if (allText.includes(condition) && !validContent.includes(condition)) {
         errors.push(`Medical condition "${condition}" mentioned but not in source data`);
+      }
+    }
+    
+    // Check if symptoms field contains only the visit reason
+    if (summary.currentSituation?.symptoms) {
+      const symptoms = summary.currentSituation.symptoms.toLowerCase();
+      const visitReason = sources.find(s => s.section === 'Visit Reason')?.content?.toLowerCase();
+      
+      if (visitReason) {
+        // Remove citation numbers for comparison
+        const cleanSymptoms = symptoms.replace(/\[\d+\]/g, '').trim();
+        const cleanVisitReason = visitReason.replace(/\[\d+\]/g, '').trim();
+        
+        if (cleanSymptoms !== cleanVisitReason) {
+          errors.push(`Symptoms field "${cleanSymptoms}" does not match visit reason "${cleanVisitReason}"`);
+        }
       }
     }
     
