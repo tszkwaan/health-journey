@@ -77,7 +77,7 @@ class RedactionTester:
             ),
             PHIPattern(
                 name="address",
-                pattern=r'\b\d+\s+[A-Za-z0-9\s,.-]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd)\b',
+                pattern=r'\b\d+\s+[A-Za-z0-9\s,.-]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd)(?:\s*,\s*[A-Za-z\s]+)?(?:\s*,\s*[A-Z]{2})?(?:\s+\d{5}(?:-\d{4})?)?\b',
                 description="Street addresses"
             ),
             PHIPattern(
@@ -99,6 +99,25 @@ class RedactionTester:
             r'\[REMOVED\]'
         ]
     
+    def is_valid_address(self, text: str) -> bool:
+        """Check if the detected text is actually a valid address"""
+        # Check if it contains common address indicators
+        address_indicators = ['Street', 'St', 'Avenue', 'Ave', 'Road', 'Rd', 'Drive', 'Dr', 'Lane', 'Ln', 'Boulevard', 'Blvd']
+        has_street_type = any(indicator in text for indicator in address_indicators)
+        
+        # Check if it's a false positive (like "address: 5 days")
+        false_positive_patterns = [
+            r'address\s*:\s*\d+',  # "address: 5"
+            r'address\s*:\s*\d+\s+days',  # "address: 5 days"
+            r'address\s*:\s*\d+\s+if',  # "address: 5 if"
+        ]
+        
+        for pattern in false_positive_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                return False
+        
+        return has_street_type
+    
     def detect_phi(self, text: str) -> List[Dict[str, Any]]:
         """Detect PHI in text"""
         detected_phi = []
@@ -106,6 +125,10 @@ class RedactionTester:
         for pattern in self.phi_patterns:
             matches = re.finditer(pattern.pattern, text, re.IGNORECASE)
             for match in matches:
+                # Special validation for addresses to avoid false positives
+                if pattern.name == 'address' and not self.is_valid_address(match.group()):
+                    continue
+                    
                 detected_phi.append({
                     'type': pattern.name,
                     'value': match.group(),
