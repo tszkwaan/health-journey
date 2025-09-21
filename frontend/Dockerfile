@@ -11,6 +11,9 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Create .env.local with Ollama URL
+RUN echo "OLLAMA_BASE_URL=http://localhost:11434" > .env.local
+
 # Generate Prisma client
 RUN npx prisma generate
 
