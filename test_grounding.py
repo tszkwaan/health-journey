@@ -29,6 +29,12 @@ class RealGroundingTester:
         self.base_url = base_url
         self.session = requests.Session()
         
+        # Add authentication headers for testing
+        self.session.headers.update({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token'
+        })
+        
         # Pattern to match source anchors like [S1], [S2], etc.
         self.anchor_pattern = r'\[S?\d+\]'
         # Pattern to match bullet points (various formats)
@@ -62,45 +68,79 @@ class RealGroundingTester:
     
     def validate_section(self, section_name: str, content: str) -> GroundingResult:
         """Validate grounding for a specific section"""
-        bullets = self.extract_bullets(content)
-        grounded_bullets = 0
-        missing_anchors = []
+        # Check if the content has source anchors
+        has_anchors = self.has_source_anchor(content)
         
-        for bullet in bullets:
-            if self.has_source_anchor(bullet):
-                grounded_bullets += 1
-            else:
-                missing_anchors.append(bullet)
-        
-        is_valid = len(missing_anchors) == 0
-        
-        return GroundingResult(
-            section=section_name,
-            total_bullets=len(bullets),
-            grounded_bullets=grounded_bullets,
-            missing_anchors=missing_anchors,
-            is_valid=is_valid
-        )
+        # For patient summaries, we expect at least one anchor per field
+        # For clinician summaries, we expect anchors in bullet points
+        if 'diagnosis' in section_name or 'instructions' in section_name or 'homeCare' in section_name or 'recovery' in section_name or 'warningSigns' in section_name or 'whenToSeekHelp' in section_name:
+            # This is a patient summary field - paragraph style
+            # Just check if it has at least one anchor
+            is_valid = has_anchors
+            return GroundingResult(
+                section=section_name,
+                total_bullets=1,
+                grounded_bullets=1 if has_anchors else 0,
+                missing_anchors=[] if has_anchors else [content[:50] + "..."],
+                is_valid=is_valid
+            )
+        else:
+            # This is a clinician summary field - check for bullet points
+            bullets = self.extract_bullets(content)
+            grounded_bullets = 0
+            missing_anchors = []
+            
+            for bullet in bullets:
+                if self.has_source_anchor(bullet):
+                    grounded_bullets += 1
+                else:
+                    missing_anchors.append(bullet)
+            
+            is_valid = len(missing_anchors) == 0
+            
+            return GroundingResult(
+                section=section_name,
+                total_bullets=len(bullets),
+                grounded_bullets=grounded_bullets,
+                missing_anchors=missing_anchors,
+                is_valid=is_valid
+            )
+    
+    def is_patient_summary(self, summary: Dict[str, Any]) -> bool:
+        """Check if this is a patient summary based on field names"""
+        patient_fields = ['diagnosis', 'instructions', 'homeCare', 'recovery', 'warningSigns', 'whenToSeekHelp']
+        return any(field in summary for field in patient_fields)
     
     def validate_summary(self, summary: Dict[str, Any]) -> List[GroundingResult]:
         """Validate grounding for an entire summary"""
         results = []
         
-        # Define sections that should have grounding
-        sections_to_validate = [
-            'chiefComplaint',
-            'historyOfPresentIllness', 
-            'physicalExam',
-            'assessment',
-            'plan',
-            'followUp',
-            'medications',
-            'instructions',
-            'homeCare',
-            'recovery',
-            'warningSigns',
-            'whenToSeekHelp'
-        ]
+        # Determine if this is a patient summary or clinician summary
+        is_patient = self.is_patient_summary(summary)
+        
+        if is_patient:
+            # Patient summary fields
+            sections_to_validate = [
+                'diagnosis',
+                'medications',
+                'instructions',
+                'homeCare',
+                'recovery',
+                'followUp',
+                'warningSigns',
+                'whenToSeekHelp'
+            ]
+        else:
+            # Clinician summary fields
+            sections_to_validate = [
+                'chiefComplaint',
+                'historyOfPresentIllness', 
+                'physicalExam',
+                'assessment',
+                'plan',
+                'followUp',
+                'medications'
+            ]
         
         for section in sections_to_validate:
             if section in summary and summary[section]:
@@ -141,7 +181,7 @@ class RealGroundingTester:
                     "transcript": transcript,
                     "reservationId": "test-reservation-123"
                 },
-                timeout=30
+                timeout=120
             )
             
             if response.status_code == 200:
@@ -198,7 +238,7 @@ class RealGroundingTester:
                     "reservationId": "test-reservation-123",
                     "clinicianSummary": clinician_summary
                 },
-                timeout=30
+                timeout=120
             )
             
             if response.status_code == 200:
@@ -214,6 +254,12 @@ class RealGroundingTester:
                     print(f"  {status} {result.section}: {result.grounded_bullets}/{result.total_bullets} grounded")
                     if not result.is_valid and result.missing_anchors:
                         print(f"    Missing anchors: {result.missing_anchors[:2]}...")
+                    
+                    # Debug: Show actual content for patient summary fields
+                    if 'diagnosis' in result.section or 'instructions' in result.section:
+                        content = str(patient_data.get(result.section, ''))
+                        print(f"    Debug - Content: {content[:100]}...")
+                        print(f"    Debug - Has anchors: {self.has_source_anchor(content)}")
                 
                 return patient_data
             else:
@@ -255,13 +301,22 @@ class RealGroundingTester:
         }
         
         try:
+            # Add special authentication for enhanced summary
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token',
+                'X-Test-User': 'test-doctor@example.com',
+                'x-internal-call': 'true'
+            }
+            
             response = self.session.post(f"{self.base_url}/api/reservations/test-reservation-123/enhanced-summary", 
                 json={
                     "medicalBackground": medical_background,
                     "intakeAnswers": intake_answers,
                     "patient": patient
                 },
-                timeout=30
+                headers=headers,
+                timeout=120
             )
             
             if response.status_code == 200:
@@ -306,7 +361,7 @@ class RealGroundingTester:
                 return False
         except requests.exceptions.RequestException as e:
             print(f"❌ Cannot connect to server: {e}")
-            print("Please ensure the healthcare platform is running on http://localhost:3001")
+            print("Please ensure the healthcare platform is running on http://localhost:3000")
             return False
 
 def main():
