@@ -18,8 +18,10 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/voicecare
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: your-secret-key
+      OLLAMA_BASE_URL: http://ollama:11434
     depends_on:
       - db
+      - ollama
     ports:
       - "3000:3000"
     command: npm run dev
