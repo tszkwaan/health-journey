@@ -154,15 +154,18 @@ class RealLatencyTester:
         return result[:target_length]
     
     def test_phi_redaction_latency(self, phi_data: str, iterations: int = 10):
-        """Test PHI redaction latency"""
+        """Test PHI redaction latency using real healthcare platform functions"""
         print(f"\n📊 Testing PHI Redaction Latency ({len(phi_data)} chars)")
         print("-" * 50)
         
         for i in range(iterations):
             def redact_phi():
-                # Simulate PHI redaction process
-                redacted_data = self.redact_phi_data(phi_data)
-                return len(redacted_data) > 0
+                # Call real PHI redaction API endpoint
+                response = self.session.post(f"{self.base_url}/api/test/redact-phi", 
+                    json={"data": phi_data},
+                    timeout=30
+                )
+                return response.status_code == 200
             
             measurement = self.measure_operation("phi_redaction", redact_phi)
             status = "✅" if measurement.success else "❌"
@@ -171,15 +174,18 @@ class RealLatencyTester:
                 print(f"    Error: {measurement.error}")
     
     def test_provenance_generation_latency(self, data: str, iterations: int = 10):
-        """Test provenance generation latency"""
+        """Test provenance generation latency using real healthcare platform functions"""
         print(f"\n📊 Testing Provenance Generation Latency ({len(data)} chars)")
         print("-" * 50)
         
         for i in range(iterations):
             def generate_provenance():
-                # Simulate provenance generation process
-                provenance = self.generate_provenance(data)
-                return len(provenance) > 0
+                # Call real provenance generation API endpoint
+                response = self.session.post(f"{self.base_url}/api/test/generate-provenance", 
+                    json={"data": data},
+                    timeout=30
+                )
+                return response.status_code == 200
             
             measurement = self.measure_operation("provenance_generation", generate_provenance)
             status = "✅" if measurement.success else "❌"
@@ -188,20 +194,18 @@ class RealLatencyTester:
                 print(f"    Error: {measurement.error}")
     
     def test_combined_redaction_provenance_latency(self, phi_data: str, iterations: int = 5):
-        """Test combined redaction and provenance pipeline latency"""
+        """Test combined redaction and provenance pipeline latency using parallel processing"""
         print(f"\n📊 Testing Combined Redaction + Provenance Pipeline ({len(phi_data)} chars)")
         print("-" * 50)
         
         for i in range(iterations):
             def run_combined_pipeline():
-                # Step 1: Redact PHI
-                redacted_data = self.redact_phi_data(phi_data)
-                if not redacted_data:
-                    return False
-                
-                # Step 2: Generate provenance
-                provenance = self.generate_provenance(redacted_data)
-                return len(provenance) > 0
+                # Use parallel pipeline API for optimized processing
+                response = self.session.post(f"{self.base_url}/api/test/parallel-pipeline", 
+                    json={"data": phi_data},
+                    timeout=30
+                )
+                return response.status_code == 200
             
             measurement = self.measure_operation("combined_redaction_provenance", run_combined_pipeline)
             status = "✅" if measurement.success else "❌"
@@ -209,38 +213,27 @@ class RealLatencyTester:
             if not measurement.success and measurement.error:
                 print(f"    Error: {measurement.error}")
     
-    def redact_phi_data(self, data: str) -> str:
-        """Simulate PHI redaction process"""
-        # PHI patterns to redact
-        phi_patterns = [
-            (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL_REDACTED]'),
-            (r'(\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})', '[PHONE_REDACTED]'),
-            (r'\b\d{3}-?\d{2}-?\d{4}\b', '[SSN_REDACTED]'),
-            (r'\b(0?[1-9]|1[0-2])[\/\-](0?[1-9]|[12][0-9]|3[01])[\/\-](19|20)\d{2}\b', '[DOB_REDACTED]'),
-            (r'\b\d+\s+[A-Za-z0-9\s,.-]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd)\b', '[ADDRESS_REDACTED]'),
-            (r'\b[A-Z]{2}\d{6}\b', '[MRN_REDACTED]'),
-            (r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b', '[NAME_REDACTED]'),  # Simple name pattern
-        ]
+    def test_parallel_batch_processing(self, phi_data: str, iterations: int = 3):
+        """Test parallel batch processing performance"""
+        print(f"\n📊 Testing Parallel Batch Processing ({len(phi_data)} chars)")
+        print("-" * 50)
         
-        redacted_data = data
-        for pattern, replacement in phi_patterns:
-            redacted_data = re.sub(pattern, replacement, redacted_data, flags=re.IGNORECASE)
+        # Create multiple copies of data for batch processing
+        batch_data = [phi_data] * 5  # Process 5 items in parallel
         
-        return redacted_data
-    
-    def generate_provenance(self, data: str) -> str:
-        """Simulate provenance generation process"""
-        # Simulate provenance metadata generation
-        provenance = {
-            "timestamp": datetime.now().isoformat(),
-            "data_length": len(data),
-            "redaction_applied": True,
-            "source": "healthcare_platform",
-            "version": "1.0",
-            "checksum": f"sha256_{hash(data) % 1000000:06d}"
-        }
-        
-        return str(provenance)
+        for i in range(iterations):
+            def run_batch_processing():
+                response = self.session.post(f"{self.base_url}/api/test/parallel-pipeline", 
+                    json={"data": batch_data, "batchSize": 5},
+                    timeout=60
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation("parallel_batch_processing", run_batch_processing)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
     
     def check_server_status(self):
         """Check if the healthcare platform server is running"""
@@ -289,6 +282,7 @@ def main():
         tester.test_phi_redaction_latency(phi_data, iterations=10)
         tester.test_provenance_generation_latency(phi_data, iterations=10)
         tester.test_combined_redaction_provenance_latency(phi_data, iterations=5)
+        tester.test_parallel_batch_processing(phi_data, iterations=3)
     
     # Calculate and display results
     print("\n📊 Real Latency Results")
