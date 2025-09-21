@@ -5,19 +5,19 @@ A comprehensive healthcare platform that streamlines patient care from intake th
 ## Demo
 
 ### Intake Process
-<iframe width="560" height="315" src="https://www.youtube.com/embed/sXoOlSeLNQ4" title="Intake Process Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+[![Intake Process Demo](https://img.youtube.com/vi/sXoOlSeLNQ4/0.jpg)](https://www.youtube.com/watch?v=sXoOlSeLNQ4)
 *Voice-enabled patient intake with real-time transcription*
 
 ### Q&A Bot
-<iframe width="560" height="315" src="https://www.youtube.com/embed/CbsNa307Who" title="Q&A Bot Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+[![Q&A Bot Demo](https://img.youtube.com/vi/CbsNa307Who/0.jpg)](https://www.youtube.com/watch?v=CbsNa307Who)
 *AI-powered Q&A chatbot with PubMed integration*
 
 ### Consultation
-<iframe width="560" height="315" src="https://www.youtube.com/embed/m3mxLIFzTP8" title="Consultation Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+[![Consultation Demo](https://img.youtube.com/vi/m3mxLIFzTP8/0.jpg)](https://www.youtube.com/watch?v=m3mxLIFzTP8)
 *Doctor consultation interface with form generation*
 
 ### Summary Generation
-<iframe width="560" height="315" src="https://www.youtube.com/embed/d8RHxhn3quk" title="Summary Generation Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+[![Summary Generation Demo](https://img.youtube.com/vi/d8RHxhn3quk/0.jpg)](https://www.youtube.com/watch?v=d8RHxhn3quk)
 *AI-generated patient summaries and documentation*
 
 ## Quick Start
