@@ -41,12 +41,28 @@ export default function IntakePage() {
   // Helper function to add entries to complete transcript
   const addToTranscript = (speaker: 'system' | 'patient', content: string, step?: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setCompleteTranscript(prev => [...prev, {
-      timestamp,
-      speaker,
-      content,
-      step
-    }]);
+    console.log('🔍 Adding to transcript:', { speaker, content: content.substring(0, 50) + '...', step });
+    
+    // Check if this exact message already exists to prevent duplicates
+    setCompleteTranscript(prev => {
+      const exists = prev.some(entry => 
+        entry.speaker === speaker && 
+        entry.content === content && 
+        entry.timestamp === timestamp
+      );
+      
+      if (exists) {
+        console.log('🔍 Duplicate transcript entry detected, skipping');
+        return prev;
+      }
+      
+      return [...prev, {
+        timestamp,
+        speaker,
+        content,
+        step
+      }];
+    });
   };
 
   // Fetch user's VoiceAI consent
@@ -67,8 +83,13 @@ export default function IntakePage() {
 
   // Initialize session on component mount
   useEffect(() => {
+    let isMounted = true;
+    
     async function startSession() {
-      if (sessionId) return;
+      if (sessionId) {
+        console.log('🔍 INTAKE PAGE: Session already exists, skipping:', sessionId);
+        return;
+      }
       
       console.log('🔍 INTAKE PAGE: Starting session with reservationId:', reservationId);
       
@@ -85,24 +106,38 @@ export default function IntakePage() {
         }
         
         const data: StartIntakeResponse = await response.json();
-        setSessionId(data.sessionId);
-        setCurrentStep(data.current_step);
-        setProgress(data.progress);
-        setUtterance(data.utterance);
-        setCurrentAnswers({});
         
-        // Add initial system message to transcript
-        addToTranscript('system', data.utterance, data.current_step);
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setSessionId(data.sessionId);
+          setCurrentStep(data.current_step);
+          setProgress(data.progress);
+          setUtterance(data.utterance);
+          setCurrentAnswers({});
+          
+          // Add initial system message to transcript
+          console.log('🔍 INTAKE PAGE: Adding initial system message to transcript');
+          addToTranscript('system', data.utterance, data.current_step);
+        }
       } catch (error) {
         console.error('Error starting session:', error);
-        setUtterance('Sorry, I encountered an error. Please refresh the page and try again.');
+        if (isMounted) {
+          setUtterance('Sorry, I encountered an error. Please refresh the page and try again.');
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
     
     startSession();
-  }, [sessionId]);
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, [reservationId]); // Only depend on reservationId to prevent re-runs
 
   // Send message to chatbot
   const sendMessage = async () => {
@@ -218,8 +253,26 @@ export default function IntakePage() {
   };
 
   // Start voice input
-  const startVoiceInput = () => {
+  const startVoiceInput = async () => {
     if (!sessionId || isListening) return;
+    
+    // Check if we're on HTTPS or localhost (allow localhost for development)
+    const isSecureContext = window.isSecureContext || window.location.hostname === 'localhost';
+    if (!isSecureContext) {
+      alert('Voice input requires HTTPS or localhost. Please use HTTPS or run on localhost.');
+      return;
+    }
+    
+    // Request microphone permission first
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop the stream immediately as we only needed permission
+      stream.getTracks().forEach(track => track.stop());
+    } catch (error) {
+      console.error('Microphone permission denied:', error);
+      alert('Microphone access is required for voice input. Please allow microphone access and try again.');
+      return;
+    }
     
     // Connect to WebSocket for backend streaming
     const url = `ws://localhost:8000/api/voice/ws/stt?sessionId=${sessionId}`;
@@ -232,7 +285,7 @@ export default function IntakePage() {
       typeof window !== 'undefined' ? (window.SpeechRecognition || (window as any).webkitSpeechRecognition) : undefined;
     
     if (!SpeechRecognitionImpl) {
-      alert('Web Speech API not supported. Use Chrome for this demo.');
+      alert('Web Speech API not supported. Please use Chrome or Edge browser.');
       return;
     }
     
@@ -273,6 +326,29 @@ export default function IntakePage() {
     
     rec.onerror = (e) => {
       console.warn('SpeechRecognition error', e);
+      let errorMessage = 'Voice input error occurred.';
+      
+      switch (e.error) {
+        case 'not-allowed':
+          errorMessage = 'Microphone access denied. Please allow microphone access and try again.';
+          break;
+        case 'no-speech':
+          errorMessage = 'No speech detected. Please try again.';
+          break;
+        case 'audio-capture':
+          errorMessage = 'No microphone found. Please check your microphone connection.';
+          break;
+        case 'network':
+          errorMessage = 'Network error. Please check your connection.';
+          break;
+        case 'service-not-allowed':
+          errorMessage = 'Voice service not allowed. Please use HTTPS or localhost.';
+          break;
+        default:
+          errorMessage = `Voice input error: ${e.error}`;
+      }
+      
+      alert(errorMessage);
       setIsListening(false);
     };
     
@@ -286,6 +362,7 @@ export default function IntakePage() {
       setIsListening(true);
     } catch (e) {
       console.warn('SpeechRecognition start failed', e);
+      alert('Failed to start voice input. Please try again.');
     }
   };
 

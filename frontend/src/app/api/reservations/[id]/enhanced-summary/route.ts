@@ -16,6 +16,7 @@ export async function POST(
     // Check if this is an internal API call (no session but has internal header)
     const isInternalCall = !session && request.headers.get('x-internal-call') === 'true';
     
+    let user = null;
     if (!isInternalCall) {
       // Regular authentication check for external calls
       if (!session || !session.user || !(session.user as any).id) {
@@ -23,7 +24,7 @@ export async function POST(
       }
 
       // Get the user to check if they're a doctor
-      const user = await prisma.user.findUnique({
+      user = await prisma.user.findUnique({
         where: { id: (session.user as any).id },
         include: {
           doctorProfile: true,
@@ -86,7 +87,7 @@ export async function POST(
     }
 
     // Check if the reservation belongs to this doctor (only for external calls)
-    if (!isInternalCall && reservation.doctorId !== user.doctorProfile.id) {
+    if (!isInternalCall && user && reservation.doctorId !== user.doctorProfile.id) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
