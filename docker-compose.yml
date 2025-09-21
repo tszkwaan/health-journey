@@ -12,6 +12,19 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/voicecare
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: your-secret-key
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+    command: npm run dev
+
   backend:
     build: ./backend
     restart: unless-stopped

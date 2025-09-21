@@ -3,38 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
-    "start": "next start",
-    "lint": "eslint",
-    "db:seed": "tsx prisma/seed.ts"
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "cd frontend && npm run start",
+    "lint": "cd frontend && npm run lint",
+    "db:seed": "cd frontend && npm run db:seed",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && pip install -e .",
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "test": "cd tests && python test_summary.py",
+    "test:enhanced": "cd tests && python test_summary_enhanced.py",
+    "test:latency": "cd tests && python test_latency.py",
+    "test:grounding": "cd tests && python test_grounding.py",
+    "test:redaction": "cd tests && python test_redaction.py",
+    "test:all": "npm run test && npm run test:enhanced && npm run test:latency && npm run test:grounding && npm run test:redaction"
   },
-  "dependencies": {
-    "@langchain/core": "^0.3.77",
-    "@langchain/langgraph": "^0.4.9",
-    "@prisma/client": "^6.16.2",
-    "@types/bcryptjs": "^3.0.0",
-    "bcrypt": "^6.0.0",
-    "bcryptjs": "^3.0.2",
-    "next": "15.5.3",
-    "next-auth": "^4.24.11",
-    "prisma": "^6.16.2",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "uuid": "^13.0.0",
-    "zod": "^4.1.9",
-    "zustand": "^5.0.8"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.3",
-    "tailwindcss": "^4",
-    "tsx": "^4.20.5",
-    "typescript": "^5"
-  }
+  "workspaces": [
+    "frontend"
+  ]
 }
