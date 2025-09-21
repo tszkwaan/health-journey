@@ -6,18 +6,22 @@ A comprehensive healthcare platform that streamlines patient care from intake th
 
 ### Intake Process
 [![Intake Process Demo](https://img.youtube.com/vi/sXoOlSeLNQ4/0.jpg)](https://www.youtube.com/watch?v=sXoOlSeLNQ4)
+
 *Voice-enabled patient intake with real-time transcription*
 
 ### Q&A Bot
 [![Q&A Bot Demo](https://img.youtube.com/vi/CbsNa307Who/0.jpg)](https://www.youtube.com/watch?v=CbsNa307Who)
+
 *AI-powered Q&A chatbot with PubMed integration*
 
 ### Consultation
 [![Consultation Demo](https://img.youtube.com/vi/m3mxLIFzTP8/0.jpg)](https://www.youtube.com/watch?v=m3mxLIFzTP8)
+
 *Doctor consultation interface with form generation*
 
 ### Summary Generation
 [![Summary Generation Demo](https://img.youtube.com/vi/d8RHxhn3quk/0.jpg)](https://www.youtube.com/watch?v=d8RHxhn3quk)
+
 *AI-generated patient summaries and documentation*
 
 ## Quick Start
