@@ -83,7 +83,8 @@ Return ONLY the JSON object, no other text.`;
 
     // Call Ollama API
     const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
-    console.log('Ollama URL being used:', ollamaUrl);
+    console.log('🔍 DEBUG: Ollama URL being used:', ollamaUrl);
+    console.log('🔍 DEBUG: Environment variables:', process.env);
     const response = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
       headers: {
