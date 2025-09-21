@@ -16,7 +16,8 @@
     "test:latency": "cd tests && python test_latency.py",
     "test:grounding": "cd tests && python test_grounding.py",
     "test:redaction": "cd tests && python test_redaction.py",
-    "test:all": "npm run test && npm run test:enhanced && npm run test:latency && npm run test:grounding && npm run test:redaction"
+    "test:summary": "cd tests && python test_summary.py",
+    "test:all": "npm run test && npm run test:summary && npm run test:latency && npm run test:grounding && npm run test:redaction"
   },
   "workspaces": [
     "frontend"

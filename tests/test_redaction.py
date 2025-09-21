@@ -294,7 +294,7 @@ class RedactionTester:
         results = []
         
         try:
-            response = self.session.post(f"{self.base_url}/api/reservations/test-reservation-phi/enhanced-summary", 
+            response = self.session.post(f"{self.base_url}/api/test/enhanced-summary-real", 
                 json={
                     "medicalBackground": medical_background,
                     "intakeAnswers": intake_answers,
