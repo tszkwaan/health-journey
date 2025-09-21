@@ -103,6 +103,14 @@ export async function POST(
       });
     }
 
+    // If this is a completed form, update reservation status to COMPLETED
+    if (isCompleted) {
+      await prisma.reservation.update({
+        where: { id: reservationId },
+        data: { status: 'COMPLETED' }
+      });
+    }
+
     return NextResponse.json(form);
   } catch (error) {
     console.error('Error saving form:', error);

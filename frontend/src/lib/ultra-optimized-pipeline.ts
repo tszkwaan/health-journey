@@ -19,7 +19,7 @@ export class UltraOptimizedPipeline {
     count: 0
   };
 
-  // Pre-compiled regex patterns for maximum speed
+  // Pre-compiled regex patterns for maximum speed - optimized for single pass
   private static readonly PHI_PATTERNS = [
     { pattern: /\b\d{3}-?\d{2}-?\d{4}\b/g, replacement: '[SSN]' },
     { pattern: /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/g, replacement: '[PHONE]' },
@@ -29,8 +29,11 @@ export class UltraOptimizedPipeline {
     { pattern: /\b(?:MRN|Medical Record|Record #?)\s*:?\s*[A-Z0-9-]{6,}\b/gi, replacement: '[MRN]' }
   ];
 
+  // Single combined regex for ultra-fast processing
+  private static readonly COMBINED_PHI_REGEX = /\b\d{3}-?\d{2}-?\d{4}\b|(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})|\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b|\b[A-Z][a-z]+ [A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b|\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b|\b(?:MRN|Medical Record|Record #?)\s*:?\s*[A-Z0-9-]{6,}\b/gi;
+
   /**
-   * Ultra-fast processing with minimal overhead
+   * Ultra-fast processing with minimal overhead - OPTIMIZED VERSION
    */
   static process(data: string): { redacted: string; processingTime: number } {
     const start = performance.now();
@@ -44,7 +47,7 @@ export class UltraOptimizedPipeline {
       };
     }
 
-    // Fast PHI detection
+    // Fast PHI detection using combined regex
     if (!this.hasPHI(data)) {
       this.cacheResult(data, data);
       this.stats.misses++;
@@ -54,11 +57,8 @@ export class UltraOptimizedPipeline {
       };
     }
 
-    // Process with pre-compiled patterns
-    let redacted = data;
-    for (const { pattern, replacement } of this.PHI_PATTERNS) {
-      redacted = redacted.replace(pattern, replacement);
-    }
+    // ULTRA-OPTIMIZED: Single pass with combined regex and smart replacement
+    const redacted = this.redactWithSinglePass(data);
 
     this.cacheResult(data, redacted);
     this.stats.misses++;
@@ -68,6 +68,22 @@ export class UltraOptimizedPipeline {
     this.stats.count++;
 
     return { redacted, processingTime };
+  }
+
+  /**
+   * Single-pass redaction with smart replacement logic
+   */
+  private static redactWithSinglePass(data: string): string {
+    return data.replace(this.COMBINED_PHI_REGEX, (match) => {
+      // Smart replacement based on pattern type
+      if (/\d{3}-?\d{2}-?\d{4}/.test(match)) return '[SSN]';
+      if (/\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/.test(match)) return '[PHONE]';
+      if (/@/.test(match)) return '[EMAIL]';
+      if (/\b(?:MRN|Medical Record|Record)/i.test(match)) return '[MRN]';
+      if (/\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/.test(match)) return '[DATE]';
+      if (/\b[A-Z][a-z]+ [A-Z][a-z]+/.test(match)) return '[NAME]';
+      return '[PHI]'; // fallback
+    });
   }
 
   /**
@@ -97,13 +113,13 @@ export class UltraOptimizedPipeline {
   }
 
   /**
-   * Fast PHI detection using simple heuristics
+   * Ultra-fast PHI detection using optimized heuristics
    */
   private static hasPHI(text: string): boolean {
     if (text.length < 10) return false;
     
-    // Quick checks for common PHI patterns
-    return /\d{3}-?\d{2}-?\d{4}|@|\(\d{3}\)|\b[A-Z][a-z]+ [A-Z][a-z]+|\b(?:DOB|Birth|MRN)\b/i.test(text);
+    // ULTRA-OPTIMIZED: Single regex check with early exit
+    return this.COMBINED_PHI_REGEX.test(text);
   }
 
   /**

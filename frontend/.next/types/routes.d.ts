@@ -5,14 +5,13 @@ type AppRoutes = "/" | "/admin/security" | "/appointments/new" | "/doctor/appoin
 type AppRouteHandlerRoutes = "/api/audit" | "/api/audit/phi" | "/api/auth/[...nextauth]" | "/api/consent" | "/api/doctor/appointments" | "/api/doctors" | "/api/doctors/[id]" | "/api/doctors/[id]/slots" | "/api/forms/generate" | "/api/forms/generate-ir" | "/api/intake/message" | "/api/intake/session" | "/api/intake/start" | "/api/medical-background" | "/api/medical-background/summarize" | "/api/patient/reservations" | "/api/patient/reservations/[id]" | "/api/register/doctor" | "/api/register/patient" | "/api/reservations" | "/api/reservations/[id]" | "/api/reservations/[id]/chat" | "/api/reservations/[id]/consultation" | "/api/reservations/[id]/enhanced-summary" | "/api/reservations/[id]/forms" | "/api/test/create-doctor" | "/api/test/create-intake" | "/api/test/create-medical-background" | "/api/test/create-patient" | "/api/test/create-reservation" | "/api/test/doctors/[id]" | "/api/test/generate-provenance" | "/api/test/parallel-pipeline" | "/api/test/patients/[id]" | "/api/test/redact-phi" | "/api/test/reservations/[id]" | "/api/test/ultra-optimized" | "/api/user/settings"
 type PageRoutes = never
 type LayoutRoutes = "/"
-type RedirectRoutes = "/[[...slug]]"
+type RedirectRoutes = never
 type RewriteRoutes = never
 type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes | AppRouteHandlerRoutes
 
 
 interface ParamMap {
   "/": {}
-  "/[[...slug]]": { "slug"?: string[]; }
   "/admin/security": {}
   "/api/audit": {}
   "/api/audit/phi": {}

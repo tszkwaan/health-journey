@@ -1,6 +1,56 @@
 {
   "app": {
+    "[project]/frontend/src/app/appointments/new/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"
+    ],
+    "[project]/frontend/src/app/doctor/appointments/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"
+    ],
+    "[project]/frontend/src/app/doctor/reservations/[id]/forms/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"
+    ],
+    "[project]/frontend/src/app/doctor/reservations/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"
+    ],
+    "[project]/frontend/src/app/intake/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"
+    ],
+    "[project]/frontend/src/app/login/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"
+    ],
     "[project]/frontend/src/app/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"
+    ],
+    "[project]/frontend/src/app/patient/medical-background/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"
+    ],
+    "[project]/frontend/src/app/patient/reservations/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"
+    ],
+    "[project]/frontend/src/app/patient/reservations/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"
+    ],
+    "[project]/frontend/src/app/settings/page": [
       "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
       "static/media/797e433ab948586e-s.p.dbea232f.woff2",
       "static/media/dc6d2a64e9dbf3bc-s.p.4b9eb7a1.woff2"

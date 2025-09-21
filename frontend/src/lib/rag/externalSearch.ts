@@ -15,59 +15,58 @@ export const trustedSources: Source[] = [
       api_key: '4078ac1471753cf4588808ca3b29e6b05908'
     },
     rateLimit: 3 // 3 requests per second
-  },
-  {
-    name: 'Cochrane Library',
-    baseUrl: 'https://www.cochranelibrary.com/api',
-    apiEndpoint: '/search',
-    searchParams: {
-      format: 'json',
-      limit: '5'
-    },
-    rateLimit: 2
-  },
-  {
-    name: 'UpToDate',
-    baseUrl: 'https://www.uptodate.com/api',
-    apiEndpoint: '/search',
-    searchParams: {
-      format: 'json',
-      limit: '5'
-    },
-    rateLimit: 1
   }
+  // Removed UpToDate and Cochrane Library due to API access issues
+  // Will focus on PubMed which is free and reliable
 ];
 
 export class ExternalSearchService {
   private rateLimiters: Map<string, number> = new Map();
 
   async searchMedicalLiterature(query: string, patientContext: PatientContext): Promise<ExternalSearchResult[]> {
+    console.log('🔍 Starting external search for query:', query);
+    
     const searchPromises = trustedSources.map(source => 
       this.searchSource(source, query, patientContext)
     );
     
     const results = await Promise.allSettled(searchPromises);
-    return this.mergeAndRankResults(results);
+    const mergedResults = this.mergeAndRankResults(results);
+    
+    console.log('📊 External search results:', mergedResults.length, 'articles found');
+    return mergedResults;
   }
 
   private async searchSource(source: Source, query: string, context: PatientContext): Promise<ExternalSearchResult[]> {
     try {
+      console.log(`🔍 Searching ${source.name} for: "${query}"`);
+      
       // Check rate limit
       if (!this.checkRateLimit(source.name)) {
-        console.log(`Rate limit exceeded for ${source.name}, skipping...`);
+        console.log(`⏰ Rate limit exceeded for ${source.name}, skipping...`);
         return [];
       }
 
-      // Build medical search query with patient context
+      // Use specific search method for PubMed
+      if (source.name === 'PubMed') {
+        const response = await this.searchPubMed(query);
+        const results = this.parseSearchResults(response, source);
+        console.log(`✅ PubMed search completed: ${results.length} results`);
+        return results;
+      }
+
+      // Build medical search query with patient context for other sources
       const medicalQuery = this.buildMedicalQuery(query, context);
       
       // Search external source
       const response = await this.makeRequest(source, medicalQuery);
       
       // Parse and validate results
-      return this.parseSearchResults(response, source);
+      const results = this.parseSearchResults(response, source);
+      console.log(`✅ ${source.name} search completed: ${results.length} results`);
+      return results;
     } catch (error) {
-      console.error(`Error searching ${source.name}:`, error);
+      console.error(`❌ Error searching ${source.name}:`, error);
       return [];
     }
   }
@@ -118,60 +117,66 @@ export class ExternalSearchService {
   }
 
   private async searchPubMed(query: string): Promise<any> {
-    // Step 1: Search for article IDs
-    const searchUrl = new URL('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi');
-    searchUrl.searchParams.append('db', 'pubmed');
-    searchUrl.searchParams.append('term', query);
-    searchUrl.searchParams.append('retmode', 'json');
-    searchUrl.searchParams.append('retmax', '10');
-    searchUrl.searchParams.append('sort', 'relevance');
-    searchUrl.searchParams.append('api_key', '4078ac1471753cf4588808ca3b29e6b05908');
+    try {
+      // Step 1: Search for article IDs
+      const searchUrl = new URL('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi');
+      searchUrl.searchParams.append('db', 'pubmed');
+      searchUrl.searchParams.append('term', query);
+      searchUrl.searchParams.append('retmode', 'json');
+      searchUrl.searchParams.append('retmax', '5'); // Reduced to 5 for faster response
+      searchUrl.searchParams.append('sort', 'relevance');
+      searchUrl.searchParams.append('api_key', '4078ac1471753cf4588808ca3b29e6b05908');
 
-    const searchResponse = await fetch(searchUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Health-Journey-RAG/1.0'
+      const searchResponse = await fetch(searchUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Health-Journey-RAG/1.0'
+        }
+      });
+
+      if (!searchResponse.ok) {
+        throw new Error(`PubMed search error: ${searchResponse.status}`);
       }
-    });
 
-    if (!searchResponse.ok) {
-      throw new Error(`PubMed search error: ${searchResponse.status}`);
-    }
+      const searchData = await searchResponse.json();
+      const ids = searchData.esearchresult?.idlist || [];
 
-    const searchData = await searchResponse.json();
-    const ids = searchData.esearchresult?.idlist || [];
+      if (ids.length === 0) {
+        return { esearchresult: { idlist: [] } };
+      }
 
-    if (ids.length === 0) {
+      // Step 2: Fetch article details
+      const fetchUrl = new URL('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi');
+      fetchUrl.searchParams.append('db', 'pubmed');
+      fetchUrl.searchParams.append('id', ids.join(','));
+      fetchUrl.searchParams.append('retmode', 'xml');
+      fetchUrl.searchParams.append('rettype', 'abstract');
+      fetchUrl.searchParams.append('api_key', '4078ac1471753cf4588808ca3b29e6b05908');
+
+      const fetchResponse = await fetch(fetchUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/xml',
+          'User-Agent': 'Health-Journey-RAG/1.0'
+        }
+      });
+
+      if (!fetchResponse.ok) {
+        throw new Error(`PubMed fetch error: ${fetchResponse.status}`);
+      }
+
+      const fetchData = await fetchResponse.text();
+      
+      return {
+        esearchresult: searchData.esearchresult,
+        efetchresult: fetchData
+      };
+    } catch (error) {
+      console.error('PubMed search error:', error);
+      // Return empty result instead of throwing to allow graceful degradation
       return { esearchresult: { idlist: [] } };
     }
-
-    // Step 2: Fetch article details
-    const fetchUrl = new URL('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi');
-    fetchUrl.searchParams.append('db', 'pubmed');
-    fetchUrl.searchParams.append('id', ids.join(','));
-    fetchUrl.searchParams.append('retmode', 'xml');
-    fetchUrl.searchParams.append('rettype', 'abstract');
-    fetchUrl.searchParams.append('api_key', '4078ac1471753cf4588808ca3b29e6b05908');
-
-    const fetchResponse = await fetch(fetchUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/xml',
-        'User-Agent': 'Health-Journey-RAG/1.0'
-      }
-    });
-
-    if (!fetchResponse.ok) {
-      throw new Error(`PubMed fetch error: ${fetchResponse.status}`);
-    }
-
-    const fetchData = await fetchResponse.text();
-    
-    return {
-      esearchresult: searchData.esearchresult,
-      efetchresult: fetchData // Store as text for now
-    };
   }
 
   private parseSearchResults(response: any, source: Source): ExternalSearchResult[] {
@@ -179,17 +184,28 @@ export class ExternalSearchService {
 
     try {
       if (source.name === 'PubMed') {
-        // Parse PubMed response - simplified approach
+        // Parse PubMed response with better medical advice extraction
         if (response.esearchresult && response.esearchresult.idlist) {
           const ids = response.esearchresult.idlist;
+          const fetchResult = response.efetchresult;
+          
+          // Extract abstracts and titles from XML
+          const abstractMatches = fetchResult?.match(/<AbstractText[^>]*>(.*?)<\/AbstractText>/gs) || [];
+          const titleMatches = fetchResult?.match(/<ArticleTitle>(.*?)<\/ArticleTitle>/gs) || [];
           
           ids.forEach((id: string, index: number) => {
+            const rawAbstract = abstractMatches?.[index]?.replace(/<[^>]*>/g, '').trim() || '';
+            const title = titleMatches?.[index]?.replace(/<[^>]*>/g, '').trim() || `Medical Research Article ${id}`;
+            
+            // Extract key medical advice from abstract
+            const medicalAdvice = this.extractMedicalAdvice(rawAbstract, title);
+            
             results.push({
-              title: `PubMed Article ${id}`,
-              abstract: `Medical literature reference from PubMed. Click the link to view full details.`,
+              title: title,
+              abstract: medicalAdvice,
               url: `https://pubmed.ncbi.nlm.nih.gov/${id}/`,
               source: 'PubMed',
-              confidence: 0.9 - (index * 0.1), // High confidence for PubMed
+              confidence: 0.9 - (index * 0.1),
               publishedDate: new Date().toISOString()
             });
           });
@@ -259,5 +275,63 @@ export class ExternalSearchService {
     }
 
     return false;
+  }
+
+  private extractMedicalAdvice(abstract: string, title: string): string {
+    // Extract key medical information and treatment recommendations
+    const advice = [];
+    
+    // Look for treatment recommendations
+    const treatmentPatterns = [
+      /treatment[^.]*\./gi,
+      /therapy[^.]*\./gi,
+      /management[^.]*\./gi,
+      /intervention[^.]*\./gi,
+      /recommendation[^.]*\./gi
+    ];
+    
+    treatmentPatterns.forEach(pattern => {
+      const matches = abstract.match(pattern);
+      if (matches) {
+        advice.push(...matches.slice(0, 2)); // Take first 2 matches
+      }
+    });
+    
+    // Look for dosage information
+    const dosagePatterns = [
+      /\d+\s*mg[^.]*\./gi,
+      /\d+\s*times\s*per\s*day[^.]*\./gi,
+      /dose[^.]*\./gi
+    ];
+    
+    dosagePatterns.forEach(pattern => {
+      const matches = abstract.match(pattern);
+      if (matches) {
+        advice.push(...matches.slice(0, 1)); // Take first match
+      }
+    });
+    
+    // Look for side effects or contraindications
+    const safetyPatterns = [
+      /side\s*effect[^.]*\./gi,
+      /contraindication[^.]*\./gi,
+      /adverse\s*event[^.]*\./gi,
+      /warning[^.]*\./gi
+    ];
+    
+    safetyPatterns.forEach(pattern => {
+      const matches = abstract.match(pattern);
+      if (matches) {
+        advice.push(...matches.slice(0, 1)); // Take first match
+      }
+    });
+    
+    // If no specific advice found, use the title and first part of abstract
+    if (advice.length === 0) {
+      const firstSentence = abstract.split('.')[0];
+      advice.push(`${title}. ${firstSentence}.`);
+    }
+    
+    return advice.join(' ').substring(0, 500); // Limit length
   }
 }

@@ -6,11 +6,6 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
-          // Force HTTPS - Only in production
-          ...(process.env.NODE_ENV === 'production' ? [{
-            key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains; preload'
-          }] : []),
           // Prevent MIME type sniffing
           {
             key: 'X-Content-Type-Options',
@@ -30,13 +25,6 @@ const nextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin'
-          },
-          // Content Security Policy - Allow localhost for development
-          {
-            key: 'Content-Security-Policy',
-            value: process.env.NODE_ENV === 'production' 
-              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:; media-src 'self'; object-src 'none'; child-src 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'; form-action 'self'; base-uri 'self';"
-              : "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' 'self' https: http://localhost:8000 ws://localhost:8000 wss://localhost:8000 ws: wss:; media-src 'self'; object-src 'none'; child-src 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'; form-action 'self'; base-uri 'self';"
           },
           // Permissions Policy - Allow microphone for voice input
           {

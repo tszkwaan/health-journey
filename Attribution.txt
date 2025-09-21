@@ -235,8 +235,6 @@ This project uses a combination of:
 
 For questions regarding third-party component usage or licensing, please contact the development team.
 
-**Project Repository**: https://github.com/tszkwaan/health-journey
-
 ---
 
 *This Attribution.txt file was generated on September 20, 2025, and should be updated whenever new dependencies are added or existing ones are modified.*

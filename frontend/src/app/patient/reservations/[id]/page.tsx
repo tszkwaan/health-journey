@@ -120,8 +120,8 @@ export default function PatientReservationDetailPage() {
     
     if (reservation.status === 'CANCELLED') return 'Cancelled';
     
-    // Check if consultation is completed (has consultation forms)
-    if (consultationForms.length > 0) {
+    // Check if consultation is completed
+    if (reservation.status === 'COMPLETED' || consultationForms.length > 0) {
       return 'Consultation Completed';
     }
     

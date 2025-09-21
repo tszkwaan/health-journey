@@ -57,17 +57,6 @@ docker compose up
 npm run dev  # Frontend only
 ```
 
-### 4. Run Tests
-```bash
-# Run all tests
-npm run test:all
-
-# Run specific tests
-npm run test:latency      # Performance tests
-npm run test:grounding    # Citation validation
-npm run test:redaction    # PHI protection tests
-```
-
 ## Project Structure
 ```
 ├── frontend/     # Next.js app (UI, API routes, database)
@@ -89,11 +78,13 @@ npm run lint         # Run ESLint
 ```
 
 ## Testing
+Ensure all services all started to run the tests.
 ```bash
 npm run test:all     # All tests
 npm run test:latency # Performance profiling
 npm run test:grounding # Citation validation
 npm run test:redaction # PHI redaction tests
+npm run test:summary # Summary
 ```
 
 ## Docker

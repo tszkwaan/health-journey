@@ -8,19 +8,30 @@ export class RAGGenerator {
     patientContext?: PatientContext
   ): Promise<RAGResponse> {
     try {
-      // 1. Build context prompt with retrieved documents
+      // 1. Pre-validate query against context to prevent hallucination
+      const preValidation = this.preValidateQuery(query, context);
+      if (preValidation.shouldReject) {
+        return {
+          response: preValidation.response,
+          sources: this.extractSources(context),
+          conversationId: `conv_${reservationId}_${Date.now()}`,
+          confidence: 0.1
+        };
+      }
+
+      // 2. Build context prompt with retrieved documents
       const contextPrompt = this.buildContextPrompt(query, context, patientContext);
       
-      // 2. Add medical disclaimer and instructions
+      // 3. Add medical disclaimer and instructions
       const systemPrompt = this.buildSystemPrompt();
       
-      // 3. Generate response using Ollama
+      // 4. Generate response using Ollama
       const response = await this.callOllama(systemPrompt, contextPrompt);
       
-      // 4. Validate response against context
-      const validatedResponse = await this.validateResponse(response, context);
+      // 5. Validate response against context
+      const validatedResponse = await this.validateResponse(response, context, query);
       
-      // 5. Extract sources
+      // 6. Extract sources
       const sources = this.extractSources(context);
       
       return {
@@ -64,14 +75,21 @@ export class RAGGenerator {
       });
     }
 
-    prompt += `\nINSTRUCTIONS:\n`;
-    prompt += `- Answer based ONLY on the provided patient data from intake and medical history\n`;
-    prompt += `- Use citation numbers [1], [2], etc. to reference specific sources\n`;
-    prompt += `- If information is not available in the provided data, say "Not available in patient records"\n`;
-    prompt += `- Be concise and professional\n`;
-    prompt += `- Focus on facts and observations from the patient's records\n`;
-    prompt += `- If asked about medical advice or diagnosis, remind the doctor to consult with the patient directly\n`;
-    prompt += `- Highlight any important patterns or concerns from the patient's history\n\n`;
+    prompt += `\nCRITICAL ANTI-HALLUCINATION RULES:\n`;
+    prompt += `1. ONLY answer based on information explicitly stated in the patient data above\n`;
+    prompt += `2. If the question asks about a specific symptom (e.g., "headache"), check if that symptom is mentioned in the patient data\n`;
+    prompt += `3. If the symptom is NOT mentioned in the patient data, say "Not available in patient records"\n`;
+    prompt += `4. DO NOT assume or infer symptoms that are not explicitly stated\n`;
+    prompt += `5. DO NOT provide information about symptoms that are not in the patient's records\n`;
+    prompt += `6. Use citation numbers [1], [2], etc. to reference specific sources\n`;
+    prompt += `7. If information is not available in the provided data, say "Not available in patient records"\n`;
+    prompt += `8. Be concise and professional\n`;
+    prompt += `9. Focus on facts and observations from the patient's records\n`;
+    prompt += `10. If asked about medical advice or diagnosis, remind the doctor to consult with the patient directly\n`;
+    prompt += `11. Highlight any important patterns or concerns from the patient's history\n`;
+    prompt += `12. If external medical literature is provided, you may reference it for general medical knowledge but always clarify it's from medical literature, not patient-specific data\n`;
+    prompt += `13. When citing external medical literature, use format: "According to medical literature [X], ..." where X is the citation number\n`;
+    prompt += `14. Always provide specific treatment recommendations from medical literature when available\n\n`;
 
     return prompt;
   }
@@ -79,16 +97,27 @@ export class RAGGenerator {
   private buildSystemPrompt(): string {
     return `You are a medical AI assistant designed to help doctors prepare for patient consultations. 
 
-IMPORTANT GUIDELINES:
+CRITICAL ANTI-HALLUCINATION GUIDELINES:
 - You can ONLY provide information that is explicitly stated in the patient data provided
-- You CANNOT provide medical advice, diagnoses, or treatment recommendations
+- You CANNOT provide medical advice, diagnoses, or treatment recommendations based on patient data alone
 - You CANNOT make assumptions or inferences beyond what is clearly stated
+- If asked about a specific symptom, ONLY answer if that symptom is explicitly mentioned in the patient data
+- If a symptom is NOT mentioned in the patient data, say "Not available in patient records"
+- DO NOT assume common symptoms or make medical inferences
 - Always cite your sources using [1], [2], etc.
 - If information is not available, clearly state "Not available in patient records"
 - Be professional, concise, and helpful
 - Focus on facts and observations, not medical opinions
+- DO NOT hallucinate symptoms or conditions not in the patient's records
 
-Your role is to help doctors quickly access and understand patient information, not to provide medical care.`;
+EXTERNAL MEDICAL LITERATURE GUIDELINES:
+- When external medical literature is provided, you MAY reference it for general medical knowledge
+- Always clarify when information comes from medical literature vs patient-specific data
+- Use format: "According to medical literature [X], ..." for external citations
+- Provide evidence-based treatment recommendations from literature when available
+- Distinguish between patient-specific findings and general medical knowledge
+
+Your role is to help doctors quickly access and understand patient information and relevant medical literature, not to provide direct medical care.`;
   }
 
   private async callOllama(systemPrompt: string, contextPrompt: string): Promise<string> {
@@ -103,8 +132,8 @@ Your role is to help doctors quickly access and understand patient information, 
           prompt: `${systemPrompt}\n\n${contextPrompt}`,
           stream: false,
           options: {
-            temperature: 0.3,
-            top_p: 0.9,
+            temperature: 0.1, // Lower temperature to reduce hallucination
+            top_p: 0.8,
             max_tokens: 500,
           },
         }),
@@ -122,7 +151,27 @@ Your role is to help doctors quickly access and understand patient information, 
     }
   }
 
-  private async validateResponse(response: string, context: DocumentChunk[]): Promise<string> {
+  private preValidateQuery(query: string, context: DocumentChunk[]): { shouldReject: boolean; response: string } {
+    const queryLower = query.toLowerCase();
+    const contextText = context.map(chunk => chunk.content.toLowerCase()).join(' ');
+    
+    // Extract potential symptoms from the query
+    const commonSymptoms = ['headache', 'fever', 'nausea', 'dizziness', 'fatigue', 'pain', 'cough', 'shortness of breath', 'chest pain', 'abdominal pain'];
+    
+    for (const symptom of commonSymptoms) {
+      if (queryLower.includes(symptom) && !contextText.includes(symptom)) {
+        console.warn(`🚨 Pre-validation: Query asks about "${symptom}" but it's not in patient data`);
+        return {
+          shouldReject: true,
+          response: `Not available in patient records. The patient's records do not mention ${symptom}. Please ask the patient directly about this symptom.`
+        };
+      }
+    }
+    
+    return { shouldReject: false, response: '' };
+  }
+
+  private async validateResponse(response: string, context: DocumentChunk[], query?: string): Promise<string> {
     // Basic validation to ensure response is grounded in context
     if (!response || response.trim().length === 0) {
       return "I don't have enough information to answer that question based on the patient's records.";
@@ -136,6 +185,20 @@ Your role is to help doctors quickly access and understand patient information, 
     // If no context and no disclaimer, add one
     if (context.length === 0 && !hasDisclaimer) {
       return response + "\n\nNote: This information is not available in the patient's current records.";
+    }
+
+    // Additional validation: Check if response mentions symptoms not in context
+    const responseLower = response.toLowerCase();
+    const contextText = context.map(chunk => chunk.content.toLowerCase()).join(' ');
+    
+    // Common symptoms that might be hallucinated
+    const commonSymptoms = ['headache', 'fever', 'nausea', 'dizziness', 'fatigue', 'pain', 'cough', 'shortness of breath'];
+    
+    for (const symptom of commonSymptoms) {
+      if (responseLower.includes(symptom) && !contextText.includes(symptom)) {
+        console.warn(`🚨 Potential hallucination detected: "${symptom}" mentioned in response but not in context`);
+        return response + `\n\nNote: Please verify this information with the patient as it may not be in the current records.`;
+      }
     }
 
     return response;

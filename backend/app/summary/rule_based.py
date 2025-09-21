@@ -18,7 +18,6 @@ class RuleBasedSummaryAdapter:
             "patient_info": first("identification"),
             "main_complaint": first("reason"),
             "symptom_onset": first("onset"),
-            "severity": "unknown",
             "relevant_history": relevant_history,
             "allergies": allergies,
             "red_flags": [],
