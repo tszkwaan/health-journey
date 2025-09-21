@@ -1,161 +1,88 @@
-# Health Journey - Healthcare Platform
+# Health Journey
 
-A comprehensive healthcare platform that streamlines the patient journey from pre-care intake through consultation to post-care documentation.
+A comprehensive healthcare platform that streamlines patient care from intake through consultation to documentation. Features AI-powered form generation, voice-enabled intake, and automated PHI redaction.
 
-## Project Structure
-
-```
-health-journey/
-├── frontend/          # Next.js frontend application
-│   ├── src/          # Source code
-│   ├── prisma/       # Database schema and migrations
-│   ├── public/       # Static assets
-│   └── scripts/      # Frontend scripts
-├── backend/          # Python FastAPI backend
-│   └── app/          # Backend application code
-├── tests/            # Test files
-│   ├── test_*.py     # Python test files
-│   └── run_tests.py  # Test runner
-└── docker-compose.yml # Docker configuration
-```
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
-
 - Node.js 20+
 - Python 3.8+
 - PostgreSQL
 - Docker (optional)
 
-### Installation
+### 1. Install Dependencies
+```bash
+npm run install:all
+```
 
-1. **Install all dependencies:**
-   ```bash
-   npm run install:all
-   ```
+### 2. Setup Database
+```bash
+# Start PostgreSQL
+docker-compose up db -d
 
-2. **Set up the database:**
-   ```bash
-   # Start PostgreSQL (if using Docker)
-   docker-compose up db -d
-   
-   # Or use your local PostgreSQL instance
-   # Update DATABASE_URL in frontend/.env.local
-   ```
+# Run migrations
+cd frontend
+npx prisma migrate dev
+npx prisma generate
+npx prisma db seed
+```
 
-3. **Run database migrations:**
-   ```bash
-   cd frontend
-   npx prisma migrate dev
-   npx prisma generate
-   ```
+### 3. Start Application
+```bash
+# Start frontend (Next.js)
+npm run dev
 
-4. **Seed the database:**
-   ```bash
-   npm run db:seed
-   ```
+# Start backend (optional)
+cd backend
+uvicorn app.main:app --reload --port 8000
+```
 
-### Development
-
-1. **Start the frontend:**
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000) to view the application.
-
-2. **Start the backend (optional):**
-   ```bash
-   cd backend
-   uvicorn app.main:app --reload --port 8000
-   ```
-
-3. **Start with Docker:**
-   ```bash
-   docker-compose up
-   ```
-
-### Testing
-
-Run the test suite:
-
+### 4. Run Tests
 ```bash
 # Run all tests
 npm run test:all
 
 # Run specific tests
-npm run test              # Basic summary tests
-npm run test:enhanced     # Enhanced summary tests
-npm run test:latency      # Latency tests
-npm run test:grounding    # Grounding tests
-npm run test:redaction    # PHI redaction tests
+npm run test:latency      # Performance tests
+npm run test:grounding    # Citation validation
+npm run test:redaction    # PHI protection tests
 ```
 
-## Features
+## Project Structure
+```
+├── frontend/     # Next.js app (UI, API routes, database)
+├── backend/      # Python FastAPI (AI services)
+└── tests/        # Test suites
+```
 
-- **Patient Intake**: Voice-enabled intake chatbot with LangGraph
-- **Consultation Management**: Real-time consultation with voice transcription
-- **Form Generation**: AI-powered form generation with RAG
-- **Security**: PHI redaction, audit logging, RBAC
+## Key Features
+- **Voice Intake**: Speech-to-text patient intake with LangGraph
+- **AI Forms**: Automated form generation with RAG and PHI redaction
+- **Security**: Audit logging, RBAC, data encryption
 - **Testing**: Comprehensive test suite for alignment and performance
 
-## Technology Stack
-
-### Frontend
-- Next.js 15.5.3 with App Router
-- TypeScript
-- Tailwind CSS
-- Prisma ORM
-- NextAuth.js
-
-### Backend
-- Python FastAPI
-- SQLAlchemy
-- LangChain/LangGraph
-- Ollama LLM
-
-### Testing
-- Python pytest-style tests
-- Real API endpoint testing
-- Performance profiling
-- Alignment validation
-
-## Development Commands
-
+## Development
 ```bash
-# Frontend commands
-npm run dev              # Start development server
-npm run build            # Build for production
-npm run start            # Start production server
-npm run lint             # Run ESLint
-
-# Backend commands
-cd backend
-uvicorn app.main:app --reload  # Start backend server
-
-# Database commands
-cd frontend
-npx prisma studio        # Open Prisma Studio
-npx prisma migrate dev   # Run migrations
-npx prisma generate      # Generate Prisma client
+npm run dev          # Start frontend
+npm run build        # Build for production
+npm run lint         # Run ESLint
 ```
 
-## Security Features
+## Testing
+```bash
+npm run test:all     # All tests
+npm run test:latency # Performance profiling
+npm run test:grounding # Citation validation
+npm run test:redaction # PHI redaction tests
+```
 
-- PHI (Protected Health Information) redaction
-- Audit logging and trail
-- Role-based access control (RBAC)
-- Data encryption at rest and in transit
-- Consent management
+## Docker
+```bash
+docker-compose up    # Start all services
+```
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `npm run test:all`
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
+## Tech Stack
+- **Frontend**: Next.js 15, TypeScript, Tailwind CSS, Prisma
+- **Backend**: Python FastAPI, LangChain, Ollama
+- **Database**: PostgreSQL
+- **AI**: Ollama LLM, RAG with PubMed
