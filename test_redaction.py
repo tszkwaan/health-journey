@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-Test Redaction: On a synthetic PHI sample, prove no PHI leaks to outputs or logs
+Test Redaction: On a synthetic PHI sample, prove no PHI leaks to outputs or logs.
 
-This test validates that the system properly redacts PHI (Personally Identifiable Information)
-from all outputs and logs, ensuring compliance with privacy regulations.
+This test calls the actual healthcare platform functions to validate that
+PHI is properly redacted from generated content.
 """
 
-import re
+import requests
 import json
-import logging
-from typing import List, Dict, Any, Set
+import re
+import time
+from typing import List, Dict, Any
 from dataclasses import dataclass
-from datetime import datetime
 
 @dataclass
 class PHIPattern:
@@ -30,10 +30,13 @@ class RedactionResult:
     is_compliant: bool
     leaked_items: List[str]
 
-class PHIRedactionTester:
-    """Tests PHI redaction in system outputs and logs"""
+class RedactionTester:
+    """Tests PHI redaction by calling actual healthcare platform APIs"""
     
-    def __init__(self):
+    def __init__(self, base_url: str = "http://localhost:3000"):
+        self.base_url = base_url
+        self.session = requests.Session()
+        
         # Define PHI patterns to detect
         self.phi_patterns = [
             PHIPattern(
@@ -141,183 +144,226 @@ class PHIRedactionTester:
             leaked_items=leaked_items
         )
     
-    def test_synthetic_phi_sample(self):
-        """Test with synthetic PHI sample"""
-        print("🧪 Testing PHI Redaction with Synthetic Sample")
-        print("=" * 60)
+    def test_form_generation_with_phi(self):
+        """Test form generation with PHI-containing transcript"""
+        print("🧪 Testing Form Generation with PHI")
+        print("=" * 50)
         
-        # Synthetic PHI sample
-        synthetic_phi = """
-        Patient Information:
-        Name: John Smith
-        DOB: 03/15/1985
-        SSN: 123-45-6789
-        Email: john.smith@email.com
-        Phone: (555) 123-4567
-        Address: 123 Main Street, Anytown, NY 12345
-        Patient ID: AB123456
-        Credit Card: 4532-1234-5678-9012
-        
-        Medical History:
-        Patient has been experiencing headaches since 03/15/2024.
-        Contact: john.smith@email.com for follow-up.
-        Emergency contact: (555) 987-6543
+        # Transcript with PHI
+        transcript_with_phi = """
+        [20:37:04] DOCTOR: Good morning, I'm Dr. Chan. How are you feeling today?
+        [20:37:10] PATIENT: Morning doctor, I've had a headache this morning. My name is John Smith, DOB 03/15/1985
+        [20:37:16] DOCTOR: Can you describe the pain?
+        [20:37:24] PATIENT: Forehead, very painful. My email is john.smith@email.com, phone (555) 123-4567
+        [20:37:30] DOCTOR: Any other symptoms?
+        [20:37:35] PATIENT: Yes, I feel feverish and tired. My SSN is 123-45-6789
+        [20:37:40] DOCTOR: Let me check your temperature
+        [20:37:45] DOCTOR: Your temperature is 37.9°C, blood pressure 118/75. Patient ID AB123456
+        [20:37:50] DOCTOR: Based on your symptoms, this could be a tension headache or viral infection
+        [20:37:55] DOCTOR: I'll prescribe acetaminophen and recommend rest
+        [20:38:00] DOCTOR: Follow up in 3-5 days if symptoms persist. Address: 123 Main Street, Anytown, NY 12345
         """
-        
-        # Test 1: Original content (should fail)
-        print("\n📋 Test 1: Original Content (Should Fail)")
-        result1 = self.validate_redaction("Original Content", synthetic_phi)
-        print(f"Total PHI found: {result1.total_phi_found}")
-        print(f"Redacted: {result1.redacted_phi}")
-        print(f"Leaked: {result1.leaked_phi}")
-        print(f"Compliant: {result1.is_compliant}")
-        if result1.leaked_items:
-            print(f"Leaked items: {result1.leaked_items}")
-        
-        # Test 2: Properly redacted content (should pass)
-        print("\n📋 Test 2: Properly Redacted Content (Should Pass)")
-        redacted_content = """
-        Patient Information:
-        Name: [REDACTED]
-        DOB: [REDACTED]
-        SSN: XXX-XX-XXXX
-        Email: [PHI]
-        Phone: [REDACTED]
-        Address: [REDACTED]
-        Patient ID: [REDACTED]
-        Credit Card: [REDACTED]
-        
-        Medical History:
-        Patient has been experiencing headaches since [REDACTED].
-        Contact: [PHI] for follow-up.
-        Emergency contact: [REDACTED]
-        """
-        
-        result2 = self.validate_redaction("Redacted Content", redacted_content)
-        print(f"Total PHI found: {result2.total_phi_found}")
-        print(f"Redacted: {result2.redacted_phi}")
-        print(f"Leaked: {result2.leaked_phi}")
-        print(f"Compliant: {result2.is_compliant}")
-        if result2.leaked_items:
-            print(f"Leaked items: {result2.leaked_items}")
-        
-        # Test 3: Partially redacted content (should fail)
-        print("\n📋 Test 3: Partially Redacted Content (Should Fail)")
-        partial_content = """
-        Patient Information:
-        Name: [REDACTED]
-        DOB: 03/15/1985
-        SSN: XXX-XX-XXXX
-        Email: john.smith@email.com
-        Phone: [REDACTED]
-        Address: [REDACTED]
-        Patient ID: [REDACTED]
-        Credit Card: [REDACTED]
-        
-        Medical History:
-        Patient has been experiencing headaches since 03/15/2024.
-        Contact: [PHI] for follow-up.
-        Emergency contact: (555) 987-6543
-        """
-        
-        result3 = self.validate_redaction("Partial Content", partial_content)
-        print(f"Total PHI found: {result3.total_phi_found}")
-        print(f"Redacted: {result3.redacted_phi}")
-        print(f"Leaked: {result3.leaked_phi}")
-        print(f"Compliant: {result3.is_compliant}")
-        if result3.leaked_items:
-            print(f"Leaked items: {result3.leaked_items}")
-        
-        return [result1, result2, result3]
-    
-    def test_log_redaction(self):
-        """Test PHI redaction in system logs"""
-        print("\n🧪 Testing Log Redaction")
-        print("=" * 30)
-        
-        # Simulate log entries with PHI
-        log_entries = [
-            "User john.smith@email.com accessed patient record AB123456",
-            "Patient John Smith (DOB: 03/15/1985) consultation completed",
-            "Emergency contact (555) 987-6543 updated for patient",
-            "Patient address 123 Main Street updated successfully",
-            "SSN 123-45-6789 verified for patient authentication"
-        ]
         
         results = []
-        for i, log_entry in enumerate(log_entries):
-            result = self.validate_redaction(f"Log Entry {i+1}", log_entry)
-            results.append(result)
-            print(f"Log {i+1}: {'✅ Compliant' if result.is_compliant else '❌ Non-compliant'}")
-            if result.leaked_items:
-                print(f"  Leaked: {result.leaked_items}")
+        
+        # Test clinician summary
+        print("\n📋 Testing Clinician Summary PHI Redaction")
+        print("-" * 40)
+        
+        try:
+            response = self.session.post(f"{self.base_url}/api/forms/generate", 
+                json={
+                    "formId": "clinician_summary",
+                    "transcript": transcript_with_phi,
+                    "reservationId": "test-reservation-phi"
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                clinician_data = response.json()
+                print("✅ Clinician summary generated")
+                
+                # Check each field for PHI
+                for field, content in clinician_data.items():
+                    if isinstance(content, str) and content.strip():
+                        result = self.validate_redaction(f"clinician_{field}", content)
+                        results.append(result)
+                        status = "✅" if result.is_compliant else "❌"
+                        print(f"  {status} {field}: {result.leaked_phi} PHI leaked")
+                        if result.leaked_items:
+                            print(f"    Leaked: {result.leaked_items[:2]}...")
+            else:
+                print(f"❌ Clinician summary generation failed: {response.status_code}")
+                
+        except Exception as e:
+            print(f"❌ Error testing clinician summary: {e}")
+        
+        # Test patient summary
+        print("\n📋 Testing Patient Summary PHI Redaction")
+        print("-" * 40)
+        
+        try:
+            response = self.session.post(f"{self.base_url}/api/forms/generate", 
+                json={
+                    "formId": "patient_summary",
+                    "transcript": transcript_with_phi,
+                    "reservationId": "test-reservation-phi"
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                patient_data = response.json()
+                print("✅ Patient summary generated")
+                
+                # Check each field for PHI
+                for field, content in patient_data.items():
+                    if isinstance(content, str) and content.strip():
+                        result = self.validate_redaction(f"patient_{field}", content)
+                        results.append(result)
+                        status = "✅" if result.is_compliant else "❌"
+                        print(f"  {status} {field}: {result.leaked_phi} PHI leaked")
+                        if result.leaked_items:
+                            print(f"    Leaked: {result.leaked_items[:2]}...")
+            else:
+                print(f"❌ Patient summary generation failed: {response.status_code}")
+                
+        except Exception as e:
+            print(f"❌ Error testing patient summary: {e}")
         
         return results
     
-    def test_output_redaction(self):
-        """Test PHI redaction in system outputs"""
-        print("\n🧪 Testing Output Redaction")
-        print("=" * 30)
+    def test_enhanced_summary_with_phi(self):
+        """Test enhanced summary with PHI-containing data"""
+        print("\n📋 Testing Enhanced Summary PHI Redaction")
+        print("-" * 40)
         
-        # Simulate system outputs
-        outputs = [
-            "Consultation Summary for John Smith (DOB: 03/15/1985)",
-            "Patient [REDACTED] has been diagnosed with [REDACTED]",
-            "Follow-up scheduled for [REDACTED] at [REDACTED]",
-            "Contact patient at [REDACTED] for appointment confirmation",
-            "Medical record [REDACTED] updated successfully"
-        ]
+        # Mock data with PHI
+        medical_background = {
+            "medicalHistory": "Patient John Smith (DOB: 03/15/1985) has no significant medical history",
+            "medications": "None",
+            "allergies": "None known. Contact: john.smith@email.com"
+        }
+        
+        intake_answers = {
+            "visit_reason": "headache",
+            "symptom_onset": "this morning",
+            "previous_treatment": "none",
+            "medical_conditions": "none",
+            "allergies": "none",
+            "concerns": "none"
+        }
+        
+        patient = {
+            "name": "John Smith",
+            "email": "john.smith@email.com",
+            "phone": "(555) 123-4567",
+            "ssn": "123-45-6789"
+        }
         
         results = []
-        for i, output in enumerate(outputs):
-            result = self.validate_redaction(f"Output {i+1}", output)
-            results.append(result)
-            print(f"Output {i+1}: {'✅ Compliant' if result.is_compliant else '❌ Non-compliant'}")
-            if result.leaked_items:
-                print(f"  Leaked: {result.leaked_items}")
+        
+        try:
+            response = self.session.post(f"{self.base_url}/api/reservations/test-reservation-phi/enhanced-summary", 
+                json={
+                    "medicalBackground": medical_background,
+                    "intakeAnswers": intake_answers,
+                    "patient": patient
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                enhanced_data = response.json()
+                print("✅ Enhanced summary generated")
+                
+                # Check each field for PHI
+                for field, content in enhanced_data.items():
+                    if isinstance(content, str) and content.strip():
+                        result = self.validate_redaction(f"enhanced_{field}", content)
+                        results.append(result)
+                        status = "✅" if result.is_compliant else "❌"
+                        print(f"  {status} {field}: {result.leaked_phi} PHI leaked")
+                        if result.leaked_items:
+                            print(f"    Leaked: {result.leaked_items[:2]}...")
+            else:
+                print(f"❌ Enhanced summary generation failed: {response.status_code}")
+                
+        except Exception as e:
+            print(f"❌ Error testing enhanced summary: {e}")
         
         return results
+    
+    def check_server_status(self):
+        """Check if the healthcare platform server is running"""
+        print("🔍 Checking Server Status")
+        print("=" * 30)
+        
+        try:
+            response = self.session.get(f"{self.base_url}/api/auth/session", timeout=5)
+            if response.status_code in [200, 401]:  # 401 is expected for unauthenticated
+                print("✅ Healthcare platform server is running")
+                return True
+            else:
+                print(f"❌ Server returned unexpected status: {response.status_code}")
+                return False
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Cannot connect to server: {e}")
+            print("Please ensure the healthcare platform is running on http://localhost:3000")
+            return False
 
 def main():
-    """Run all PHI redaction tests"""
+    """Run redaction tests"""
     print("🔒 PHI Redaction Test Suite")
-    print("=" * 50)
-    print("Testing compliance with privacy regulations")
-    print("Ensuring no PHI leaks to outputs or logs")
+    print("=" * 60)
+    print("Testing actual healthcare platform PHI redaction")
     print()
     
-    tester = PHIRedactionTester()
+    tester = RedactionTester()
     
-    # Run all tests
-    synthetic_results = tester.test_synthetic_phi_sample()
-    log_results = tester.test_log_redaction()
-    output_results = tester.test_output_redaction()
+    # Check if server is running
+    if not tester.check_server_status():
+        print("\n❌ Cannot proceed without running server")
+        print("Please start the healthcare platform with: npm run dev")
+        return
+    
+    print("\n🚀 Starting PHI Redaction Tests")
+    print("=" * 50)
+    
+    # Test form generation with PHI
+    form_results = tester.test_form_generation_with_phi()
+    
+    # Test enhanced summary with PHI
+    enhanced_results = tester.test_enhanced_summary_with_phi()
+    
+    # Combine all results
+    all_results = form_results + enhanced_results
     
     # Summary
-    print("\n📊 Test Summary")
-    print("=" * 20)
+    print("\n📊 PHI Redaction Test Summary")
+    print("=" * 40)
     
-    all_results = synthetic_results + log_results + output_results
-    total_tests = len(all_results)
-    compliant_tests = sum(1 for r in all_results if r.is_compliant)
-    
-    print(f"Total tests: {total_tests}")
-    print(f"Compliant: {compliant_tests}")
-    print(f"Non-compliant: {total_tests - compliant_tests}")
-    print(f"Compliance rate: {(compliant_tests/total_tests)*100:.1f}%")
-    
-    if compliant_tests == total_tests:
-        print("\n✅ All tests passed! System is PHI compliant.")
+    if all_results:
+        total_tests = len(all_results)
+        compliant_tests = sum(1 for r in all_results if r.is_compliant)
+        total_phi_found = sum(r.total_phi_found for r in all_results)
+        total_leaked = sum(r.leaked_phi for r in all_results)
+        
+        print(f"Total Tests: {total_tests}")
+        print(f"Compliant Tests: {compliant_tests}")
+        print(f"Non-compliant Tests: {total_tests - compliant_tests}")
+        print(f"Compliance Rate: {(compliant_tests/total_tests)*100:.1f}%")
+        print(f"Total PHI Found: {total_phi_found}")
+        print(f"PHI Leaked: {total_leaked}")
+        print(f"Redaction Rate: {((total_phi_found - total_leaked)/total_phi_found)*100:.1f}%" if total_phi_found > 0 else "No PHI found")
+        
+        if compliant_tests == total_tests:
+            print("\n✅ All tests passed! The system properly redacts PHI.")
+        else:
+            print(f"\n❌ {total_tests - compliant_tests} tests failed. The system needs PHI redaction improvements.")
     else:
-        print(f"\n❌ {total_tests - compliant_tests} tests failed. System needs PHI redaction fixes.")
-    
-    print("\n🔍 PHI Detection Patterns:")
-    for pattern in tester.phi_patterns:
-        print(f"  - {pattern.name}: {pattern.description}")
-    
-    print("\n🛡️ Redaction Patterns:")
-    for pattern in tester.redaction_patterns:
-        print(f"  - {pattern}")
+        print("❌ No test results available. Check server connectivity and API endpoints.")
 
 if __name__ == "__main__":
     main()

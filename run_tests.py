@@ -20,10 +20,7 @@ class TestRunner:
             "test_grounding.py",
             "test_redaction.py", 
             "test_latency.py",
-            "test_summary.py",
-            "test_real_grounding.py",
-            "test_real_redaction.py",
-            "test_real_latency.py"
+            "test_summary.py"
         ]
         self.results = {}
     

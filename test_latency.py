@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """
-Test Latency: Profile your redaction and provenance pipeline. Report P50/P95 latencies.
+Test Real Latency: Call actual healthcare platform functions to test performance
 
-This test measures the performance of the redaction and provenance pipeline
-to ensure it meets real-time requirements for healthcare applications.
+This test calls the real form generation API endpoints to measure
+actual latency and performance metrics.
 """
 
+import requests
 import time
-import asyncio
 import statistics
-from typing import List, Dict, Any, Tuple
+import asyncio
+from typing import List, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime
-import random
-import string
 
 @dataclass
 class LatencyMeasurement:
@@ -38,10 +37,12 @@ class LatencyStats:
     p99_ms: float
     success_rate: float
 
-class LatencyProfiler:
-    """Profiles latency of redaction and provenance operations"""
+class RealLatencyTester:
+    """Tests latency by calling actual healthcare platform APIs"""
     
-    def __init__(self):
+    def __init__(self, base_url: str = "http://localhost:3000"):
+        self.base_url = base_url
+        self.session = requests.Session()
         self.measurements: List[LatencyMeasurement] = []
     
     def measure_operation(self, operation_name: str, func, *args, **kwargs) -> LatencyMeasurement:
@@ -52,33 +53,6 @@ class LatencyProfiler:
         
         try:
             result = func(*args, **kwargs)
-        except Exception as e:
-            success = False
-            error = str(e)
-            result = None
-        
-        end_time = time.time()
-        duration_ms = (end_time - start_time) * 1000
-        
-        measurement = LatencyMeasurement(
-            operation=operation_name,
-            duration_ms=duration_ms,
-            timestamp=datetime.now(),
-            success=success,
-            error=error
-        )
-        
-        self.measurements.append(measurement)
-        return measurement
-    
-    async def measure_async_operation(self, operation_name: str, func, *args, **kwargs) -> LatencyMeasurement:
-        """Measure the latency of an async operation"""
-        start_time = time.time()
-        success = True
-        error = None
-        
-        try:
-            result = await func(*args, **kwargs)
         except Exception as e:
             success = False
             error = str(e)
@@ -130,239 +104,207 @@ class LatencyProfiler:
         """Get statistics for all operations"""
         operations = set(m.operation for m in self.measurements)
         return [self.calculate_stats(op) for op in operations]
-
-class MockRedactionService:
-    """Mock redaction service for testing"""
     
-    def __init__(self):
-        self.phi_patterns = [
-            r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',  # Email
-            r'(\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})',  # Phone
-            r'\b\d{3}-?\d{2}-?\d{4}\b',  # SSN
-            r'\b(0?[1-9]|1[0-2])[\/\-](0?[1-9]|[12][0-9]|3[01])[\/\-](19|20)\d{2}\b'  # DOB
-        ]
-    
-    def redact_text(self, text: str) -> str:
-        """Simulate text redaction with artificial delay"""
-        import re
-        
-        # Simulate processing time based on text length
-        processing_time = len(text) * 0.0001  # 0.1ms per character
-        time.sleep(processing_time)
-        
-        # Perform redaction
-        redacted = text
-        for pattern in self.phi_patterns:
-            redacted = re.sub(pattern, '[REDACTED]', redacted, flags=re.IGNORECASE)
-        
-        return redacted
-    
-    async def redact_text_async(self, text: str) -> str:
-        """Simulate async text redaction"""
-        # Simulate async processing
-        await asyncio.sleep(len(text) * 0.00005)  # 0.05ms per character
-        
-        # Perform redaction
-        import re
-        redacted = text
-        for pattern in self.phi_patterns:
-            redacted = re.sub(pattern, '[REDACTED]', redacted, flags=re.IGNORECASE)
-        
-        return redacted
-
-class MockProvenanceService:
-    """Mock provenance service for testing"""
-    
-    def generate_citations(self, text: str) -> Dict[str, Any]:
-        """Simulate citation generation with artificial delay"""
-        # Simulate processing time
-        processing_time = len(text) * 0.0002  # 0.2ms per character
-        time.sleep(processing_time)
-        
-        # Generate mock citations
-        citations = []
-        sentences = text.split('.')
-        for i, sentence in enumerate(sentences[:5]):  # Limit to 5 citations
-            if sentence.strip():
-                citations.append({
-                    'id': i + 1,
-                    'type': 'consultation',
-                    'content': sentence.strip(),
-                    'source': 'Consultation transcript',
-                    'timestamp': f"20:37:{i*10:02d}"
-                })
-        
-        return {
-            'citations': citations,
-            'total_citations': len(citations)
+    def generate_test_transcript(self, size: str) -> str:
+        """Generate test transcript of specified size"""
+        sizes = {
+            'small': 100,
+            'medium': 1000,
+            'large': 5000,
+            'xlarge': 10000
         }
+        
+        target_length = sizes.get(size, 1000)
+        
+        base_transcript = """
+        [20:37:04] DOCTOR: Good morning, I'm Dr. Chan. How are you feeling today?
+        [20:37:10] PATIENT: Morning doctor, I've had a headache this morning
+        [20:37:16] DOCTOR: Can you describe the pain?
+        [20:37:24] PATIENT: Forehead, very painful
+        [20:37:30] DOCTOR: Any other symptoms?
+        [20:37:35] PATIENT: Yes, I feel feverish and tired
+        [20:37:40] DOCTOR: Let me check your temperature
+        [20:37:45] DOCTOR: Your temperature is 37.9°C, blood pressure 118/75
+        [20:37:50] DOCTOR: Based on your symptoms, this could be a tension headache or viral infection
+        [20:37:55] DOCTOR: I'll prescribe acetaminophen and recommend rest
+        [20:38:00] DOCTOR: Follow up in 3-5 days if symptoms persist
+        """
+        
+        # Repeat and vary the transcript to reach target length
+        result = base_transcript
+        while len(result) < target_length:
+            variation = base_transcript.replace("headache", "pain")
+            variation = variation.replace("feverish", "unwell")
+            variation = variation.replace("37.9°C", "38.1°C")
+            result += "\n\n" + variation
+        
+        return result[:target_length]
     
-    async def generate_citations_async(self, text: str) -> Dict[str, Any]:
-        """Simulate async citation generation"""
-        # Simulate async processing
-        await asyncio.sleep(len(text) * 0.0001)  # 0.1ms per character
+    def test_form_generation_latency(self, form_type: str, transcript: str, iterations: int = 5):
+        """Test form generation latency"""
+        print(f"\n📊 Testing {form_type} Generation Latency ({len(transcript)} chars)")
+        print("-" * 50)
         
-        # Generate mock citations
-        citations = []
-        sentences = text.split('.')
-        for i, sentence in enumerate(sentences[:5]):
-            if sentence.strip():
-                citations.append({
-                    'id': i + 1,
-                    'type': 'consultation',
-                    'content': sentence.strip(),
-                    'source': 'Consultation transcript',
-                    'timestamp': f"20:37:{i*10:02d}"
-                })
+        for i in range(iterations):
+            def generate_form():
+                response = self.session.post(f"{self.base_url}/api/forms/generate", 
+                    json={
+                        "formId": form_type,
+                        "transcript": transcript,
+                        "reservationId": f"test-reservation-{i}"
+                    },
+                    timeout=60
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation(f"{form_type}_generation", generate_form)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
+    def test_enhanced_summary_latency(self, iterations: int = 5):
+        """Test enhanced summary generation latency"""
+        print(f"\n📊 Testing Enhanced Summary Generation Latency")
+        print("-" * 50)
         
-        return {
-            'citations': citations,
-            'total_citations': len(citations)
+        medical_background = {
+            "medicalHistory": "No significant medical history",
+            "medications": "None",
+            "allergies": "None known"
         }
+        
+        intake_answers = {
+            "visit_reason": "headache",
+            "symptom_onset": "this morning",
+            "previous_treatment": "none",
+            "medical_conditions": "none",
+            "allergies": "none",
+            "concerns": "none"
+        }
+        
+        patient = {
+            "name": "Test Patient",
+            "email": "test@example.com"
+        }
+        
+        for i in range(iterations):
+            def generate_enhanced_summary():
+                response = self.session.post(f"{self.base_url}/api/reservations/test-reservation-{i}/enhanced-summary", 
+                    json={
+                        "medicalBackground": medical_background,
+                        "intakeAnswers": intake_answers,
+                        "patient": patient
+                    },
+                    timeout=60
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation("enhanced_summary_generation", generate_enhanced_summary)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
+    def test_combined_pipeline_latency(self, transcript: str, iterations: int = 3):
+        """Test combined pipeline latency (clinician + patient summary)"""
+        print(f"\n📊 Testing Combined Pipeline Latency ({len(transcript)} chars)")
+        print("-" * 50)
+        
+        for i in range(iterations):
+            def run_combined_pipeline():
+                # Generate clinician summary first
+                clinician_response = self.session.post(f"{self.base_url}/api/forms/generate", 
+                    json={
+                        "formId": "clinician_summary",
+                        "transcript": transcript,
+                        "reservationId": f"test-pipeline-{i}"
+                    },
+                    timeout=60
+                )
+                
+                if clinician_response.status_code != 200:
+                    return False
+                
+                clinician_data = clinician_response.json()
+                
+                # Generate patient summary with clinician data
+                patient_response = self.session.post(f"{self.base_url}/api/forms/generate", 
+                    json={
+                        "formId": "patient_summary",
+                        "transcript": transcript,
+                        "reservationId": f"test-pipeline-{i}",
+                        "clinicianSummary": clinician_data
+                    },
+                    timeout=60
+                )
+                
+                return patient_response.status_code == 200
+            
+            measurement = self.measure_operation("combined_pipeline", run_combined_pipeline)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
+    def check_server_status(self):
+        """Check if the healthcare platform server is running"""
+        print("🔍 Checking Server Status")
+        print("=" * 30)
+        
+        try:
+            response = self.session.get(f"{self.base_url}/api/auth/session", timeout=5)
+            if response.status_code in [200, 401]:  # 401 is expected for unauthenticated
+                print("✅ Healthcare platform server is running")
+                return True
+            else:
+                print(f"❌ Server returned unexpected status: {response.status_code}")
+                return False
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Cannot connect to server: {e}")
+            print("Please ensure the healthcare platform is running on http://localhost:3000")
+            return False
 
-def generate_test_data(size: str) -> str:
-    """Generate test data of specified size"""
-    sizes = {
-        'small': 100,
-        'medium': 1000,
-        'large': 5000,
-        'xlarge': 10000
-    }
-    
-    target_length = sizes.get(size, 1000)
-    
-    # Generate realistic medical text with PHI
-    base_text = """
-    Patient John Smith (DOB: 03/15/1985) presented with headache and fever.
-    Contact: john.smith@email.com, Phone: (555) 123-4567
-    Address: 123 Main Street, Anytown, NY 12345
-    SSN: 123-45-6789, Patient ID: AB123456
-    
-    Medical History:
-    Patient has been experiencing headaches since 03/15/2024.
-    Previous treatment included acetaminophen and rest.
-    No known allergies or medical conditions.
-    
-    Physical Examination:
-    Temperature: 37.9°C, Blood pressure: 118/75 mmHg
-    Heart rate: 92 bpm, Respiratory rate: 16/min
-    General appearance: Alert, oriented, in mild distress
-    
-    Assessment and Plan:
-    Differential diagnosis includes tension headache and viral infection.
-    Plan: Prescribe acetaminophen, monitor symptoms, follow-up in 3-5 days.
-    Contact patient at (555) 123-4567 for appointment confirmation.
-    """
-    
-    # Repeat and vary the text to reach target length
-    result = base_text
-    while len(result) < target_length:
-        # Add variation to avoid exact repetition
-        variation = base_text.replace("John Smith", f"Patient {random.randint(1, 1000)}")
-        variation = variation.replace("03/15/1985", f"{random.randint(1,12):02d}/{random.randint(1,28):02d}/{random.randint(1980,2000)}")
-        variation = variation.replace("john.smith@email.com", f"patient{random.randint(1,1000)}@email.com")
-        variation = variation.replace("(555) 123-4567", f"({random.randint(100,999)}) {random.randint(100,999)}-{random.randint(1000,9999)}")
-        result += "\n\n" + variation
-    
-    return result[:target_length]
-
-async def run_latency_tests():
-    """Run comprehensive latency tests"""
-    print("⏱️  Latency Profiling Test Suite")
-    print("=" * 50)
-    print("Testing redaction and provenance pipeline performance")
+def main():
+    """Run real latency tests"""
+    print("⏱️  Real Latency Profiling Test Suite")
+    print("=" * 60)
+    print("Testing actual healthcare platform performance")
     print()
     
-    profiler = LatencyProfiler()
-    redaction_service = MockRedactionService()
-    provenance_service = MockProvenanceService()
+    tester = RealLatencyTester()
     
-    # Test data sizes
-    test_sizes = ['small', 'medium', 'large', 'xlarge']
+    # Check if server is running
+    if not tester.check_server_status():
+        print("\n❌ Cannot proceed without running server")
+        print("Please start the healthcare platform with: npm run dev")
+        return
     
-    print("🧪 Testing Redaction Performance")
-    print("-" * 40)
+    print("\n🚀 Starting Real Latency Tests")
+    print("=" * 40)
     
-    for size in test_sizes:
-        print(f"\n📊 Testing {size.upper()} data ({len(generate_test_data(size))} chars)")
-        
-        # Test synchronous redaction
-        for i in range(10):  # 10 iterations per size
-            test_data = generate_test_data(size)
-            profiler.measure_operation(
-                f"redaction_sync_{size}",
-                redaction_service.redact_text,
-                test_data
-            )
-        
-        # Test asynchronous redaction
-        for i in range(10):
-            test_data = generate_test_data(size)
-            await profiler.measure_async_operation(
-                f"redaction_async_{size}",
-                redaction_service.redact_text_async,
-                test_data
-            )
-    
-    print("\n🧪 Testing Provenance Performance")
-    print("-" * 40)
+    # Test different transcript sizes
+    test_sizes = ['small', 'medium', 'large']
     
     for size in test_sizes:
-        print(f"\n📊 Testing {size.upper()} data ({len(generate_test_data(size))} chars)")
+        transcript = tester.generate_test_transcript(size)
+        print(f"\n📊 Testing {size.upper()} data ({len(transcript)} chars)")
         
-        # Test synchronous citation generation
-        for i in range(10):
-            test_data = generate_test_data(size)
-            profiler.measure_operation(
-                f"provenance_sync_{size}",
-                provenance_service.generate_citations,
-                test_data
-            )
+        # Test individual form generation
+        tester.test_form_generation_latency('clinician_summary', transcript, 3)
+        tester.test_form_generation_latency('patient_summary', transcript, 3)
         
-        # Test asynchronous citation generation
-        for i in range(10):
-            test_data = generate_test_data(size)
-            await profiler.measure_async_operation(
-                f"provenance_async_{size}",
-                provenance_service.generate_citations_async,
-                test_data
-            )
-    
-    print("\n🧪 Testing Combined Pipeline")
-    print("-" * 40)
-    
-    for size in test_sizes:
-        print(f"\n📊 Testing {size.upper()} data ({len(generate_test_data(size))} chars)")
+        # Test enhanced summary
+        tester.test_enhanced_summary_latency(3)
         
-        # Test combined redaction + provenance
-        for i in range(10):
-            test_data = generate_test_data(size)
-            
-            # Measure combined pipeline
-            start_time = time.time()
-            
-            # Redaction
-            redacted = redaction_service.redact_text(test_data)
-            
-            # Provenance
-            citations = provenance_service.generate_citations(redacted)
-            
-            end_time = time.time()
-            duration_ms = (end_time - start_time) * 1000
-            
-            measurement = LatencyMeasurement(
-                operation=f"pipeline_combined_{size}",
-                duration_ms=duration_ms,
-                timestamp=datetime.now(),
-                success=True
-            )
-            profiler.measurements.append(measurement)
+        # Test combined pipeline
+        tester.test_combined_pipeline_latency(transcript, 2)
     
     # Generate and display results
-    print("\n📊 Latency Results")
+    print("\n📊 Real Latency Results")
     print("=" * 50)
     
-    all_stats = profiler.get_all_stats()
+    all_stats = tester.get_all_stats()
     
     for stats in all_stats:
         if stats.count > 0:
@@ -406,10 +348,6 @@ async def run_latency_tests():
     success_rates = [op.success_rate for op in all_stats if op.count > 0]
     avg_success_rate = statistics.mean(success_rates) if success_rates else 0
     print(f"  ✅ Success Rate: {avg_success_rate*100:.1f}% {'PASS' if avg_success_rate > 0.99 else 'FAIL'}")
-
-def main():
-    """Main function to run latency tests"""
-    asyncio.run(run_latency_tests())
 
 if __name__ == "__main__":
     main()

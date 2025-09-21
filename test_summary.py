@@ -1,146 +1,40 @@
 #!/usr/bin/env python3
 """
-Test Summary: Side-by-side comparison of Clinician Summary and Patient Summary templates
+Test Summary: Side-by-side comparison of the Clinician Summary Template and the Patient Summary Template 
+generated from the same synthetic consult. Explain design choices.
 
-This test generates both summary templates from the same synthetic consultation
-and provides a detailed comparison to explain design choices and ensure alignment.
+This test calls the actual healthcare platform functions to generate both summary types
+and compares their alignment, content overlap, and tone differences.
 """
 
+import requests
 import json
 import re
-from typing import Dict, Any, List, Tuple
+import time
+from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass
-from datetime import datetime
 
 @dataclass
 class SummaryComparison:
-    """Comparison between clinician and patient summaries"""
+    """Result of summary comparison"""
     field: str
     clinician_content: str
     patient_content: str
     alignment_score: float
-    tone_difference: str
     content_overlap: float
+    tone_difference: str
+    is_aligned: bool
 
-class SummaryAnalyzer:
-    """Analyzes and compares summary templates"""
+class SummaryTester:
+    """Tests summary generation and comparison by calling actual healthcare platform APIs"""
     
-    def __init__(self):
-        self.medical_terms = {
-            'diagnosis': ['diagnosis', 'condition', 'disorder', 'syndrome'],
-            'medications': ['medication', 'drug', 'prescription', 'treatment'],
-            'symptoms': ['symptom', 'sign', 'complaint', 'presentation'],
-            'examination': ['examination', 'assessment', 'evaluation', 'findings'],
-            'plan': ['plan', 'treatment', 'management', 'approach'],
-            'followup': ['follow-up', 'followup', 'monitoring', 'surveillance']
-        }
+    def __init__(self, base_url: str = "http://localhost:3000"):
+        self.base_url = base_url
+        self.session = requests.Session()
     
-    def extract_medical_terms(self, text: str) -> List[str]:
-        """Extract medical terms from text"""
-        terms = []
-        text_lower = text.lower()
-        
-        for category, term_list in self.medical_terms.items():
-            for term in term_list:
-                if term in text_lower:
-                    terms.append(term)
-        
-        return terms
-    
-    def calculate_content_overlap(self, text1: str, text2: str) -> float:
-        """Calculate content overlap between two texts"""
-        words1 = set(re.findall(r'\b\w+\b', text1.lower()))
-        words2 = set(re.findall(r'\b\w+\b', text2.lower()))
-        
-        if not words1 or not words2:
-            return 0.0
-        
-        intersection = words1.intersection(words2)
-        union = words1.union(words2)
-        
-        return len(intersection) / len(union) if union else 0.0
-    
-    def analyze_tone(self, text: str) -> Dict[str, float]:
-        """Analyze the tone of text"""
-        # Simple tone analysis based on word patterns
-        professional_words = ['patient', 'diagnosis', 'treatment', 'assessment', 'clinical']
-        caring_words = ['you', 'your', 'feel', 'comfortable', 'help', 'support']
-        technical_words = ['syndrome', 'pathology', 'etiology', 'prognosis', 'differential']
-        
-        text_lower = text.lower()
-        
-        professional_score = sum(1 for word in professional_words if word in text_lower)
-        caring_score = sum(1 for word in caring_words if word in text_lower)
-        technical_score = sum(1 for word in technical_words if word in text_lower)
-        
-        total_words = len(re.findall(r'\b\w+\b', text_lower))
-        
-        return {
-            'professional': professional_score / total_words if total_words > 0 else 0,
-            'caring': caring_score / total_words if total_words > 0 else 0,
-            'technical': technical_score / total_words if total_words > 0 else 0
-        }
-    
-    def compare_summaries(self, clinician: Dict[str, Any], patient: Dict[str, Any]) -> List[SummaryComparison]:
-        """Compare clinician and patient summaries"""
-        comparisons = []
-        
-        # Define field mappings between clinician and patient summaries
-        field_mappings = {
-            'chiefComplaint': 'diagnosis',
-            'historyOfPresentIllness': 'diagnosis',
-            'physicalExam': 'examination',
-            'assessment': 'diagnosis',
-            'plan': 'medications',
-            'followUp': 'followUp',
-            'medications': 'medications',
-            'instructions': 'instructions',
-            'homeCare': 'homeCare',
-            'recovery': 'recovery',
-            'warningSigns': 'warningSigns',
-            'whenToSeekHelp': 'whenToSeekHelp'
-        }
-        
-        for clin_field, pat_field in field_mappings.items():
-            if clin_field in clinician and pat_field in patient:
-                clin_content = str(clinician[clin_field])
-                pat_content = str(patient[pat_field])
-                
-                # Calculate alignment metrics
-                content_overlap = self.calculate_content_overlap(clin_content, pat_content)
-                
-                # Analyze tone differences
-                clin_tone = self.analyze_tone(clin_content)
-                pat_tone = self.analyze_tone(pat_content)
-                
-                # Calculate alignment score (0-1, higher is better)
-                alignment_score = content_overlap * 0.7 + (1 - abs(clin_tone['technical'] - pat_tone['technical'])) * 0.3
-                
-                # Determine tone difference
-                if pat_tone['caring'] > clin_tone['caring']:
-                    tone_diff = "Patient summary is more caring/empathetic"
-                elif clin_tone['technical'] > pat_tone['technical']:
-                    tone_diff = "Clinician summary is more technical"
-                else:
-                    tone_diff = "Similar tone levels"
-                
-                comparison = SummaryComparison(
-                    field=clin_field,
-                    clinician_content=clin_content,
-                    patient_content=pat_content,
-                    alignment_score=alignment_score,
-                    tone_difference=tone_diff,
-                    content_overlap=content_overlap
-                )
-                
-                comparisons.append(comparison)
-        
-        return comparisons
-
-def generate_synthetic_consultation() -> Dict[str, Any]:
-    """Generate a synthetic consultation for testing"""
-    return {
-        "transcript": """
+    def generate_synthetic_consultation(self) -> str:
+        """Generate a synthetic consultation transcript for testing"""
+        return """
         [20:37:04] DOCTOR: Good morning, I'm Dr. Chan. How are you feeling today?
         [20:37:10] PATIENT: Morning doctor, I've had a headache this morning
         [20:37:16] DOCTOR: Can you describe the pain?
@@ -152,167 +46,302 @@ def generate_synthetic_consultation() -> Dict[str, Any]:
         [20:37:50] DOCTOR: Based on your symptoms, this could be a tension headache or viral infection
         [20:37:55] DOCTOR: I'll prescribe acetaminophen and recommend rest
         [20:38:00] DOCTOR: Follow up in 3-5 days if symptoms persist
-        """,
-        "notes": "Temperature 37.9°C, blood pressure 118/75, heart rate 92. Patient appears alert but in mild distress.",
-        "patient_info": {
-            "name": "John Doe",
-            "dob": "1990-05-15",
-            "allergies": "None known",
-            "medications": "None"
-        }
-    }
-
-def generate_clinician_summary(consultation: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate clinician summary from consultation"""
-    return {
-        "chiefComplaint": "Patient presents with headache and fever [S1]",
-        "historyOfPresentIllness": "Headache started this morning, described as very painful in forehead region [S2]. Patient reports feeling feverish and tired [S3]",
-        "physicalExam": "Vital signs: Temperature 37.9°C, blood pressure 118/75 mmHg, heart rate 92 bpm [S4]. Patient appears alert but in mild distress [S5]",
-        "assessment": "Differential diagnosis includes tension headache and viral infection [S6]. Symptoms consistent with viral syndrome [S7]",
-        "plan": "Prescribe acetaminophen 500mg every 6 hours as needed for pain and fever [S8]. Recommend rest and adequate hydration [S9]",
-        "followUp": "Schedule follow-up appointment in 3-5 days to reassess symptoms and adjust treatment plan as needed [S10]",
-        "citations": [
-            {"id": 1, "content": "headache this morning", "source": "Consultation transcript", "timestamp": "20:37:10"},
-            {"id": 2, "content": "Forehead, very painful", "source": "Consultation transcript", "timestamp": "20:37:24"},
-            {"id": 3, "content": "feel feverish and tired", "source": "Consultation transcript", "timestamp": "20:37:35"},
-            {"id": 4, "content": "temperature is 37.9°C, blood pressure 118/75", "source": "Consultation transcript", "timestamp": "20:37:45"},
-            {"id": 5, "content": "Patient appears alert but in mild distress", "source": "Doctor notes", "timestamp": "20:37:45"},
-            {"id": 6, "content": "tension headache or viral infection", "source": "Consultation transcript", "timestamp": "20:37:50"},
-            {"id": 7, "content": "viral syndrome", "source": "Clinical assessment", "timestamp": "20:37:50"},
-            {"id": 8, "content": "prescribe acetaminophen", "source": "Consultation transcript", "timestamp": "20:37:55"},
-            {"id": 9, "content": "recommend rest", "source": "Consultation transcript", "timestamp": "20:37:55"},
-            {"id": 10, "content": "Follow up in 3-5 days", "source": "Consultation transcript", "timestamp": "20:38:00"}
+        [20:38:05] PATIENT: Thank you doctor, I'll follow your advice
+        [20:38:10] DOCTOR: Take care and call if symptoms worsen
+        """
+    
+    def call_form_generation_api(self, form_type: str, transcript: str, clinician_summary: Dict = None) -> Dict[str, Any]:
+        """Call the actual form generation API"""
+        try:
+            payload = {
+                "formId": form_type,
+                "transcript": transcript,
+                "reservationId": "test-summary-comparison"
+            }
+            
+            if clinician_summary:
+                payload["clinicianSummary"] = clinician_summary
+            
+            response = self.session.post(f"{self.base_url}/api/forms/generate", 
+                json=payload,
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print(f"❌ {form_type} generation failed: {response.status_code}")
+                return {}
+                
+        except Exception as e:
+            print(f"❌ Error generating {form_type}: {e}")
+            return {}
+    
+    def calculate_content_overlap(self, text1: str, text2: str) -> float:
+        """Calculate content overlap between two texts"""
+        if not text1 or not text2:
+            return 0.0
+        
+        # Simple word-based overlap calculation
+        words1 = set(text1.lower().split())
+        words2 = set(text2.lower().split())
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        intersection = words1.intersection(words2)
+        union = words1.union(words2)
+        
+        return len(intersection) / len(union) if union else 0.0
+    
+    def analyze_tone_difference(self, clinician_text: str, patient_text: str) -> str:
+        """Analyze tone differences between clinician and patient summaries"""
+        # Simple tone analysis based on keywords
+        clinician_indicators = ['patient', 'presents', 'assessment', 'clinical', 'diagnosis', 'treatment plan']
+        patient_indicators = ['you', 'your', 'we', 'our', 'care', 'help', 'support']
+        
+        clinician_tone_score = sum(1 for indicator in clinician_indicators if indicator in clinician_text.lower())
+        patient_tone_score = sum(1 for indicator in patient_indicators if indicator in patient_text.lower())
+        
+        if clinician_tone_score > patient_tone_score:
+            return "Clinical/Professional"
+        elif patient_tone_score > clinician_tone_score:
+            return "Caring/Patient-friendly"
+        else:
+            return "Mixed"
+    
+    def compare_field_alignment(self, field: str, clinician_content: str, patient_content: str) -> SummaryComparison:
+        """Compare alignment between clinician and patient summary fields"""
+        # Calculate content overlap
+        overlap = self.calculate_content_overlap(clinician_content, patient_content)
+        
+        # Analyze tone difference
+        tone_diff = self.analyze_tone_difference(clinician_content, patient_content)
+        
+        # Calculate alignment score (combination of overlap and medical accuracy)
+        alignment_score = overlap * 0.7  # Base score from content overlap
+        
+        # Check for medical term alignment
+        medical_terms = ['acetaminophen', 'tylenol', 'ibuprofen', 'advil', 'fever', 'headache', 'temperature', 'blood pressure']
+        clinician_terms = [term for term in medical_terms if term in clinician_content.lower()]
+        patient_terms = [term for term in medical_terms if term in patient_content.lower()]
+        
+        if clinician_terms and patient_terms:
+            term_alignment = len(set(clinician_terms).intersection(set(patient_terms))) / len(set(clinician_terms).union(set(patient_terms)))
+            alignment_score += term_alignment * 0.3
+        
+        # Check if follow-up timing is aligned
+        if 'follow' in field.lower() or 'up' in field.lower():
+            clinician_days = re.findall(r'(\d+)\s*days?', clinician_content.lower())
+            patient_days = re.findall(r'(\d+)\s*days?', patient_content.lower())
+            
+            if clinician_days and patient_days:
+                if set(clinician_days) == set(patient_days):
+                    alignment_score += 0.2
+                else:
+                    alignment_score -= 0.3
+        
+        is_aligned = alignment_score >= 0.6
+        
+        return SummaryComparison(
+            field=field,
+            clinician_content=clinician_content,
+            patient_content=patient_content,
+            alignment_score=alignment_score,
+            content_overlap=overlap,
+            tone_difference=tone_diff,
+            is_aligned=is_aligned
+        )
+    
+    def test_summary_generation_and_comparison(self):
+        """Test summary generation and perform side-by-side comparison"""
+        print("🧪 Testing Summary Generation and Comparison")
+        print("=" * 60)
+        
+        # Generate synthetic consultation
+        transcript = self.generate_synthetic_consultation()
+        print(f"📝 Generated synthetic consultation ({len(transcript)} chars)")
+        
+        # Generate clinician summary first
+        print("\n📋 Generating Clinician Summary...")
+        clinician_summary = self.call_form_generation_api("clinician_summary", transcript)
+        
+        if not clinician_summary:
+            print("❌ Failed to generate clinician summary")
+            return []
+        
+        print("✅ Clinician summary generated successfully")
+        
+        # Generate patient summary using clinician summary
+        print("\n📋 Generating Patient Summary...")
+        patient_summary = self.call_form_generation_api("patient_summary", transcript, clinician_summary)
+        
+        if not patient_summary:
+            print("❌ Failed to generate patient summary")
+            return []
+        
+        print("✅ Patient summary generated successfully")
+        
+        # Compare summaries
+        print("\n🔍 Comparing Summaries...")
+        print("=" * 40)
+        
+        comparisons = []
+        
+        # Define fields to compare
+        comparable_fields = [
+            ('medications', 'medications'),
+            ('plan', 'instructions'),
+            ('followUp', 'followUp'),
+            ('assessment', 'diagnosis'),
+            ('physicalExam', 'homeCare')
         ]
-    }
-
-def generate_patient_summary(consultation: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate patient summary from consultation"""
-    return {
-        "diagnosis": "You have a headache with fever, which could be caused by tension or a viral infection [S1]",
-        "medications": "Acetaminophen (Tylenol) 500mg every 6 hours as needed for pain and fever [S2]",
-        "instructions": "Take acetaminophen as directed by your doctor, usually every 4-6 hours as needed [S3]",
-        "homeCare": "Rest and stay hydrated to help manage your symptoms [S4]. Get plenty of sleep and avoid stress [S5]",
-        "recovery": "You can expect to feel better with rest and over-the-counter pain relief [S6]. Most symptoms should improve within 3-5 days [S7]",
-        "followUp": "Schedule a follow-up appointment in 3-5 days if your symptoms persist or worsen [S8]",
-        "warningSigns": "Watch for signs of worsening headache, such as increased severity or frequency [S9]. Contact your doctor if you experience severe symptoms [S10]",
-        "whenToSeekHelp": "Contact your doctor immediately if your headache worsens or if you experience any of the following: fever above 38.5°C, severe headache, neck stiffness, or confusion [S11]",
-        "citations": [
-            {"id": 1, "content": "headache with fever", "source": "Consultation transcript", "timestamp": "20:37:10"},
-            {"id": 2, "content": "prescribe acetaminophen", "source": "Consultation transcript", "timestamp": "20:37:55"},
-            {"id": 3, "content": "every 4-6 hours as needed", "source": "Treatment plan", "timestamp": "20:37:55"},
-            {"id": 4, "content": "recommend rest", "source": "Consultation transcript", "timestamp": "20:37:55"},
-            {"id": 5, "content": "adequate hydration", "source": "Treatment plan", "timestamp": "20:37:55"},
-            {"id": 6, "content": "feel better with rest", "source": "Recovery guidance", "timestamp": "20:37:55"},
-            {"id": 7, "content": "improve within 3-5 days", "source": "Follow-up plan", "timestamp": "20:38:00"},
-            {"id": 8, "content": "Follow up in 3-5 days", "source": "Consultation transcript", "timestamp": "20:38:00"},
-            {"id": 9, "content": "worsening headache", "source": "Warning signs", "timestamp": "20:38:00"},
-            {"id": 10, "content": "severe symptoms", "source": "Warning signs", "timestamp": "20:38:00"},
-            {"id": 11, "content": "fever above 38.5°C", "source": "Emergency criteria", "timestamp": "20:38:00"}
-        ]
-    }
-
-def run_summary_comparison_test():
-    """Run the summary comparison test"""
-    print("📋 Summary Template Comparison Test")
-    print("=" * 50)
-    print("Comparing Clinician Summary vs Patient Summary")
-    print("Generated from the same synthetic consultation")
-    print()
+        
+        for clinician_field, patient_field in comparable_fields:
+            if clinician_field in clinician_summary and patient_field in patient_summary:
+                comparison = self.compare_field_alignment(
+                    f"{clinician_field} vs {patient_field}",
+                    str(clinician_summary[clinician_field]),
+                    str(patient_summary[patient_field])
+                )
+                comparisons.append(comparison)
+                
+                status = "✅" if comparison.is_aligned else "❌"
+                print(f"  {status} {comparison.field}:")
+                print(f"    Alignment Score: {comparison.alignment_score:.2f}")
+                print(f"    Content Overlap: {comparison.content_overlap:.2f}")
+                print(f"    Tone: {comparison.tone_difference}")
+                print(f"    Clinician: {comparison.clinician_content[:100]}...")
+                print(f"    Patient: {comparison.patient_content[:100]}...")
+                print()
+        
+        return comparisons
     
-    # Generate test data
-    consultation = generate_synthetic_consultation()
-    clinician_summary = generate_clinician_summary(consultation)
-    patient_summary = generate_patient_summary(consultation)
+    def analyze_design_choices(self, comparisons: List[SummaryComparison]):
+        """Analyze and explain design choices for summary templates"""
+        print("\n🎯 Design Choices Analysis")
+        print("=" * 40)
+        
+        if not comparisons:
+            print("❌ No comparisons available for analysis")
+            return
+        
+        # Calculate overall metrics
+        total_comparisons = len(comparisons)
+        aligned_comparisons = sum(1 for c in comparisons if c.is_aligned)
+        avg_alignment = sum(c.alignment_score for c in comparisons) / total_comparisons
+        avg_overlap = sum(c.content_overlap for c in comparisons) / total_comparisons
+        
+        print(f"📊 Overall Metrics:")
+        print(f"  Total Field Comparisons: {total_comparisons}")
+        print(f"  Aligned Fields: {aligned_comparisons}")
+        print(f"  Alignment Rate: {(aligned_comparisons/total_comparisons)*100:.1f}%")
+        print(f"  Average Alignment Score: {avg_alignment:.2f}")
+        print(f"  Average Content Overlap: {avg_overlap:.2f}")
+        
+        print(f"\n🎨 Design Choices Explained:")
+        print(f"  1. **Dual Summary Approach**: Separate clinician and patient summaries")
+        print(f"     - Clinician Summary: Professional, technical, comprehensive")
+        print(f"     - Patient Summary: Caring, accessible, actionable")
+        print(f"     - Rationale: Different audiences need different information presentation")
+        
+        print(f"  2. **Content Alignment Strategy**:")
+        print(f"     - Medical facts must be consistent between summaries")
+        print(f"     - Medications, dosages, and timing must match exactly")
+        print(f"     - Rationale: Prevents confusion and ensures treatment compliance")
+        
+        print(f"  3. **Tone Differentiation**:")
+        print(f"     - Clinician: 'Patient presents with...' (objective)")
+        print(f"     - Patient: 'You have...' (personal, caring)")
+        print(f"     - Rationale: Builds trust and improves patient understanding")
+        
+        print(f"  4. **Field Mapping Strategy**:")
+        for comparison in comparisons:
+            if 'medications' in comparison.field:
+                print(f"     - Medications: Direct mapping with patient-friendly names")
+            elif 'plan' in comparison.field and 'instructions' in comparison.field:
+                print(f"     - Treatment Plan → Instructions: Convert clinical plan to actionable steps")
+            elif 'follow' in comparison.field:
+                print(f"     - Follow-up: Maintain exact timing, adjust language")
+        
+        print(f"  5. **Quality Assurance**:")
+        print(f"     - Alignment Score Threshold: 0.6 (60% alignment required)")
+        print(f"     - Content Overlap: Ensures medical accuracy")
+        print(f"     - Tone Analysis: Validates appropriate communication style")
+        
+        # Recommendations
+        print(f"\n💡 Recommendations:")
+        if avg_alignment < 0.7:
+            print(f"  - Improve field alignment (current: {avg_alignment:.2f})")
+        if avg_overlap < 0.5:
+            print(f"  - Increase content overlap (current: {avg_overlap:.2f})")
+        
+        print(f"  - Monitor alignment in production")
+        print(f"  - Regular validation of medical accuracy")
+        print(f"  - User feedback on patient summary clarity")
     
-    # Analyze summaries
-    analyzer = SummaryAnalyzer()
-    comparisons = analyzer.compare_summaries(clinician_summary, patient_summary)
-    
-    print("🔍 Detailed Field-by-Field Comparison")
-    print("=" * 50)
-    
-    for comparison in comparisons:
-        print(f"\n📊 {comparison.field.upper()}")
-        print(f"Alignment Score: {comparison.alignment_score:.2f}/1.0")
-        print(f"Content Overlap: {comparison.content_overlap:.2f}/1.0")
-        print(f"Tone Difference: {comparison.tone_difference}")
-        print()
-        print("👨‍⚕️ CLINICIAN SUMMARY:")
-        print(f"  {comparison.clinician_content}")
-        print()
-        print("👤 PATIENT SUMMARY:")
-        print(f"  {comparison.patient_content}")
-        print("-" * 80)
-    
-    # Overall analysis
-    print("\n📈 Overall Analysis")
-    print("=" * 30)
-    
-    avg_alignment = sum(c.alignment_score for c in comparisons) / len(comparisons)
-    avg_overlap = sum(c.content_overlap for c in comparisons) / len(comparisons)
-    
-    print(f"Average Alignment Score: {avg_alignment:.2f}/1.0")
-    print(f"Average Content Overlap: {avg_overlap:.2f}/1.0")
-    print(f"Total Fields Compared: {len(comparisons)}")
-    
-    # Design choices explanation
-    print("\n🎯 Design Choices Explanation")
-    print("=" * 40)
-    
-    print("""
-    📋 CLINICIAN SUMMARY DESIGN:
-    - Uses medical terminology and clinical language
-    - Focuses on diagnostic reasoning and treatment rationale
-    - Includes detailed physical examination findings
-    - Emphasizes differential diagnosis and clinical assessment
-    - Structured for medical record keeping and peer review
-    
-    👤 PATIENT SUMMARY DESIGN:
-    - Uses plain language and patient-friendly terms
-    - Focuses on what the patient needs to know and do
-    - Emphasizes self-care instructions and warning signs
-    - Includes emotional support and reassurance
-    - Structured for patient understanding and compliance
-    
-    🔗 ALIGNMENT STRATEGY:
-    - Both summaries cover the same medical information
-    - Content overlap ensures consistency in medical facts
-    - Tone differences serve different audiences appropriately
-    - Citations provide traceability to original sources
-    - Follow-up plans are synchronized between both summaries
-    """)
-    
-    # Quality metrics
-    print("\n✅ Quality Metrics")
-    print("=" * 20)
-    
-    high_alignment = sum(1 for c in comparisons if c.alignment_score > 0.7)
-    good_overlap = sum(1 for c in comparisons if c.content_overlap > 0.5)
-    
-    print(f"High Alignment Fields (>0.7): {high_alignment}/{len(comparisons)}")
-    print(f"Good Content Overlap (>0.5): {good_overlap}/{len(comparisons)}")
-    print(f"Overall Quality: {'EXCELLENT' if avg_alignment > 0.8 else 'GOOD' if avg_alignment > 0.6 else 'NEEDS IMPROVEMENT'}")
-    
-    # Recommendations
-    print("\n💡 Recommendations")
-    print("=" * 20)
-    
-    if avg_alignment < 0.8:
-        print("• Improve content alignment between clinician and patient summaries")
-        print("• Ensure medical facts are consistent across both templates")
-        print("• Synchronize follow-up plans and medication instructions")
-    
-    if avg_overlap < 0.6:
-        print("• Increase content overlap while maintaining appropriate tone differences")
-        print("• Ensure both summaries cover the same key medical information")
-    
-    print("• Maintain current tone differentiation for target audiences")
-    print("• Continue using citations for traceability and grounding")
-    print("• Regular validation of summary alignment in production")
+    def check_server_status(self):
+        """Check if the healthcare platform server is running"""
+        print("🔍 Checking Server Status")
+        print("=" * 30)
+        
+        try:
+            response = self.session.get(f"{self.base_url}/api/auth/session", timeout=5)
+            if response.status_code in [200, 401]:  # 401 is expected for unauthenticated
+                print("✅ Healthcare platform server is running")
+                return True
+            else:
+                print(f"❌ Server returned unexpected status: {response.status_code}")
+                return False
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Cannot connect to server: {e}")
+            print("Please ensure the healthcare platform is running on http://localhost:3000")
+            return False
 
 def main():
-    """Main function to run summary comparison test"""
-    run_summary_comparison_test()
+    """Run summary comparison tests"""
+    print("📊 Summary Comparison Test Suite")
+    print("=" * 60)
+    print("Testing actual healthcare platform summary generation and comparison")
+    print()
+    
+    tester = SummaryTester()
+    
+    # Check if server is running
+    if not tester.check_server_status():
+        print("\n❌ Cannot proceed without running server")
+        print("Please start the healthcare platform with: npm run dev")
+        return
+    
+    print("\n🚀 Starting Summary Comparison Tests")
+    print("=" * 50)
+    
+    # Test summary generation and comparison
+    comparisons = tester.test_summary_generation_and_comparison()
+    
+    # Analyze design choices
+    tester.analyze_design_choices(comparisons)
+    
+    # Summary
+    print("\n📊 Summary Comparison Test Results")
+    print("=" * 40)
+    
+    if comparisons:
+        total_comparisons = len(comparisons)
+        aligned_comparisons = sum(1 for c in comparisons if c.is_aligned)
+        avg_alignment = sum(c.alignment_score for c in comparisons) / total_comparisons
+        
+        print(f"Total Field Comparisons: {total_comparisons}")
+        print(f"Aligned Fields: {aligned_comparisons}")
+        print(f"Alignment Rate: {(aligned_comparisons/total_comparisons)*100:.1f}%")
+        print(f"Average Alignment Score: {avg_alignment:.2f}")
+        
+        if aligned_comparisons == total_comparisons:
+            print("\n✅ All summary fields are properly aligned!")
+        else:
+            print(f"\n⚠️  {total_comparisons - aligned_comparisons} fields need better alignment.")
+    else:
+        print("❌ No comparison results available. Check server connectivity and API endpoints.")
 
 if __name__ == "__main__":
     main()
