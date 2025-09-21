@@ -3,14 +3,14 @@ import { OptimizedPHIRedactor } from '@/lib/phi-redaction-optimized';
 
 export async function POST(request: NextRequest) {
   try {
-    const { formId, transcript, reservationId, clinicianSummary } = await request.json();
+    const { formId, transcript, reservationId, clinicianSummary, canonicalIR } = await request.json();
 
     if (!formId || !transcript) {
       return NextResponse.json({ error: 'Form ID and transcript are required' }, { status: 400 });
     }
 
-    // Generate form data using LLM based on transcript
-    const formData = await generateFormData(formId, transcript, clinicianSummary);
+    // Generate form data using LLM based on transcript and IR
+    const formData = await generateFormData(formId, transcript, clinicianSummary, canonicalIR);
 
     // Redact PHI from form data before sending to client using optimized redactor
     const redactedFormData = OptimizedPHIRedactor.redactObject(formData);
@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function generateFormData(formType: string, transcript: string, clinicianSummary?: any) {
+async function generateFormData(formType: string, transcript: string, clinicianSummary?: any, canonicalIR?: any) {
   try {
-    // Create prompt based on form type with RAG context
-    const prompt = await createFormPrompt(formType, transcript, clinicianSummary);
+    // Create prompt based on form type with RAG context and IR
+    const prompt = await createFormPrompt(formType, transcript, clinicianSummary, canonicalIR);
 
     // Call Ollama API
     const response = await fetch('http://localhost:11434/api/generate', {
@@ -72,7 +72,7 @@ async function generateFormData(formType: string, transcript: string, clinicianS
   }
 }
 
-async function createFormPrompt(formType: string, transcript: string, clinicianSummary?: any): Promise<string> {
+async function createFormPrompt(formType: string, transcript: string, clinicianSummary?: any, canonicalIR?: any): Promise<string> {
   // Extract key medical terms for RAG search
   const medicalTerms = extractMedicalTerms(transcript);
   console.log('Extracted medical terms:', medicalTerms);
@@ -80,6 +80,11 @@ async function createFormPrompt(formType: string, transcript: string, clinicianS
   // Get PubMed information using RAG
   const ragContext = await getPubMedContext(medicalTerms);
   console.log('PubMed context:', ragContext.substring(0, 200) + '...');
+  
+  // Debug logging for canonical IR
+  if (canonicalIR) {
+    console.log('Using Canonical IR for form generation:', JSON.stringify(canonicalIR, null, 2));
+  }
   
   // Debug logging for clinician summary
   if (clinicianSummary && formType === 'patient_summary') {
@@ -93,6 +98,34 @@ ${transcript}
 
 MEDICAL CONTEXT (from PubMed research):
 ${ragContext}
+
+${canonicalIR ? `
+CANONICAL INTERMEDIATE REPRESENTATION (IR) - SINGLE SOURCE OF TRUTH:
+${JSON.stringify(canonicalIR, null, 2)}
+
+CRITICAL: Use ONLY the information from the Canonical IR above. This is the single source of truth for both clinician and patient summaries.
+
+IR-BASED GENERATION RULES:
+1. Use ONLY medications listed in the IR medications array
+2. Use ONLY diagnoses from the IR diagnoses array with their exact certainty levels
+3. Use ONLY plan items from the IR plan array
+4. Use ONLY follow-up timing and conditions from the IR follow_up object
+5. Use ONLY examination findings from the IR exam object
+6. Do NOT add any medications, diagnoses, or treatments not present in the IR
+7. If IR field is empty or missing, use "Not specified" or leave empty
+
+MEDICATION NORMALIZATION:
+- Convert medical frequencies to patient-friendly format (q6h → "每6小時一次")
+- Include both generic and brand names when available
+- Use exact doses and routes from IR
+
+CERTAINTY ALIGNMENT:
+- If IR certainty is "possible" → use "可能" or "或許" in patient version
+- If IR certainty is "likely" → use "大機會" or "很可能" in patient version  
+- If IR certainty is "confirmed" → use "確診" or "確定" in patient version
+- If IR certainty is "unlikely" → use "機會較低" or "不太可能" in patient version
+
+` : ''}
 
 ${clinicianSummary && formType === 'patient_summary' ? `
 CLINICIAN SUMMARY (for reference and alignment):
@@ -254,7 +287,7 @@ async function getPubMedContext(medicalTerms: string[]): Promise<string> {
     const abstractText = await abstractResponse.text();
     
     // Extract relevant information from abstracts (simplified)
-    const abstracts = abstractText.match(/<AbstractText[^>]*>(.*?)<\/AbstractText>/gs) || [];
+    const abstracts = abstractText.match(/<AbstractText[^>]*>(.*?)<\/AbstractText>/g) || [];
     const relevantInfo = abstracts.slice(0, 2).map(abstract => 
       abstract.replace(/<[^>]*>/g, '').substring(0, 200)
     ).join(' ');
@@ -392,7 +425,7 @@ function findMatchingTranscriptEntry(content: string, transcriptEntries: any[]):
   for (const entry of transcriptEntries) {
     const entryWords = entry.content.toLowerCase().split(/\s+/);
     const matchingWords = contentWords.filter(word => 
-      entryWords.some(entryWord => entryWord.includes(word) || word.includes(entryWord))
+      entryWords.some((entryWord: string) => entryWord.includes(word) || word.includes(entryWord))
     );
     
     // If we have a good match (at least 2 words or 50% of content words)
