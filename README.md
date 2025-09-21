@@ -2,6 +2,21 @@
 
 A comprehensive healthcare platform that streamlines patient care from intake through consultation to documentation. Features AI-powered form generation, voice-enabled intake, and automated PHI redaction.
 
+## Demo
+
+### Intake Process
+![Intake Process](demo/intake.mov)
+
+### Pre-consultation
+![Pre-consultation](demo/consultation.mov)
+
+### Q&A Bot
+![Q&A Bot](demo/qna_bot.mov)
+
+### Summary Generation
+![Summary Generation](demo/summary_generation.mov)
+
+
 ## Quick Start
 
 ### Prerequisites
