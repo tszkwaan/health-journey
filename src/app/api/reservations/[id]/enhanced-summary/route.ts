@@ -448,6 +448,12 @@ CRITICAL INSTRUCTIONS:
 - Do not include any text before or after the JSON
 - Use simple text lists within the string values (no special characters)
 - Always include citation numbers [S1], [S2], etc. for each piece of information
+- MANDATORY GROUNDING REQUIREMENTS: Every field containing medical information MUST have source anchors [S1], [S2], [S3], etc.
+- EVERY field that contains medical information MUST have source anchors
+- EVERY bullet point, numbered list item, or medical statement MUST be traceable to original sources
+- bullet point must have a source anchor
+- numbered item must have a source anchor
+- Use citation numbers [S1], [S2], [S3], etc. for ALL medical findings, symptoms, treatments, and recommendations
 - If information is missing, use "Not provided" or "Unknown"
 - Keep each point concise and actionable
 - Use medical terminology appropriately

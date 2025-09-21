@@ -72,6 +72,12 @@ Rules:
 5. If information is missing or unclear, use 'not specified'
 6. Keep medical terminology accurate but simplified
 7. Add source anchors [S1], [S2], etc. to all medical information extracted from the transcript
+8. MANDATORY GROUNDING REQUIREMENTS: Every field containing medical information MUST have source anchors [S1], [S2], [S3], etc.
+9. EVERY field that contains medical information MUST have source anchors
+10. EVERY bullet point, numbered list item, or medical statement MUST be traceable to original sources
+11. bullet point must have a source anchor
+12. numbered item must have a source anchor
+13. Use citation numbers [S1], [S2], [S3], etc. for ALL medical findings, symptoms, treatments, and recommendations
 
 Return ONLY the JSON object, no other text.`;
 
