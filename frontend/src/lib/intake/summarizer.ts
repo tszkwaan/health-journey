@@ -82,7 +82,8 @@ Rules:
 Return ONLY the JSON object, no other text.`;
 
     // Call Ollama API
-    const response = await fetch('http://localhost:11434/api/generate', {
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
+    const response = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

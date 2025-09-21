@@ -28,7 +28,8 @@ async function generateFormData(formType: string, transcript: string, clinicianS
     const prompt = await createFormPrompt(formType, transcript, clinicianSummary, canonicalIR);
 
     // Call Ollama API
-    const response = await fetch('http://localhost:11434/api/generate', {
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
+    const response = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

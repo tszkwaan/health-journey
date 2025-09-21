@@ -122,7 +122,8 @@ Your role is to help doctors quickly access and understand patient information a
 
   private async callOllama(systemPrompt: string, contextPrompt: string): Promise<string> {
     try {
-      const response = await fetch('http://localhost:11434/api/generate', {
+      const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
+      const response = await fetch(`${ollamaUrl}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
