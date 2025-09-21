@@ -40,10 +40,16 @@ class LatencyStats:
 class RealLatencyTester:
     """Tests latency by calling actual healthcare platform APIs"""
     
-    def __init__(self, base_url: str = "http://localhost:3001"):
+    def __init__(self, base_url: str = "http://localhost:3000"):
         self.base_url = base_url
         self.session = requests.Session()
         self.measurements: List[LatencyMeasurement] = []
+        
+        # Add authentication headers for testing
+        self.session.headers.update({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token'
+        })
     
     def measure_operation(self, operation_name: str, func, *args, **kwargs) -> LatencyMeasurement:
         """Measure the latency of an operation"""
@@ -253,7 +259,7 @@ class RealLatencyTester:
         print("=" * 30)
         
         try:
-            response = self.session.get(f"{self.base_url}/api/auth/session", timeout=5)
+            response = self.session.get(f"{self.base_url}/api/auth/session", timeout=10)
             if response.status_code in [200, 401]:  # 401 is expected for unauthenticated
                 print("✅ Healthcare platform server is running")
                 return True

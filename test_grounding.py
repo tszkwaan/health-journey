@@ -12,6 +12,7 @@ import re
 import time
 from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass
+from test_data_setup import TestDataSetup
 
 @dataclass
 class GroundingResult:
@@ -275,30 +276,17 @@ class RealGroundingTester:
             return None
     
     def test_enhanced_summary_generation(self):
-        """Test enhanced summary generation"""
+        """Test enhanced summary generation with real test data"""
         print("\n📋 Testing Enhanced Summary Generation")
         print("-" * 40)
         
-        # Mock data for enhanced summary
-        medical_background = {
-            "medicalHistory": "No significant medical history",
-            "medications": "None",
-            "allergies": "None known"
-        }
+        # Create test data
+        test_data_setup = TestDataSetup(self.base_url)
+        test_data = test_data_setup.setup_complete_test_data()
         
-        intake_answers = {
-            "visit_reason": "headache",
-            "symptom_onset": "this morning",
-            "previous_treatment": "none",
-            "medical_conditions": "none",
-            "allergies": "none",
-            "concerns": "none"
-        }
-        
-        patient = {
-            "name": "Test Patient",
-            "email": "test@example.com"
-        }
+        if not test_data:
+            print("❌ Failed to create test data for enhanced summary")
+            return None
         
         try:
             # Add special authentication for enhanced summary
@@ -309,11 +297,18 @@ class RealGroundingTester:
                 'x-internal-call': 'true'
             }
             
-            response = self.session.post(f"{self.base_url}/api/reservations/test-reservation-123/enhanced-summary", 
+            response = self.session.post(f"{self.base_url}/api/reservations/{test_data['reservation']['id']}/enhanced-summary", 
                 json={
-                    "medicalBackground": medical_background,
-                    "intakeAnswers": intake_answers,
-                    "patient": patient
+                    "medicalBackground": {
+                        "medicalHistory": test_data['medical']['medicalHistory'],
+                        "medications": test_data['medical']['medications'],
+                        "allergies": test_data['medical']['allergies']
+                    },
+                    "intakeAnswers": test_data['intake']['answers'],
+                    "patient": {
+                        "name": test_data['patient']['name'],
+                        "email": test_data['patient']['email']
+                    }
                 },
                 headers=headers,
                 timeout=120
@@ -333,17 +328,26 @@ class RealGroundingTester:
                     if not result.is_valid and result.missing_anchors:
                         print(f"    Missing anchors: {result.missing_anchors[:2]}...")
                 
+                # Clean up test data
+                test_data_setup.cleanup_test_data()
+                
                 return enhanced_data
             else:
                 print(f"❌ Enhanced summary generation failed: {response.status_code}")
                 print(f"Error: {response.text}")
+                # Clean up test data
+                test_data_setup.cleanup_test_data()
                 return None
                 
         except requests.exceptions.RequestException as e:
             print(f"❌ Network error: {e}")
+            # Clean up test data
+            test_data_setup.cleanup_test_data()
             return None
         except Exception as e:
             print(f"❌ Unexpected error: {e}")
+            # Clean up test data
+            test_data_setup.cleanup_test_data()
             return None
     
     def check_server_status(self):

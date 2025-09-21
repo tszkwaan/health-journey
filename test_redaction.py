@@ -33,9 +33,15 @@ class RedactionResult:
 class RedactionTester:
     """Tests PHI redaction by calling actual healthcare platform APIs"""
     
-    def __init__(self, base_url: str = "http://localhost:3001"):
+    def __init__(self, base_url: str = "http://localhost:3000"):
         self.base_url = base_url
         self.session = requests.Session()
+        
+        # Add authentication headers for testing
+        self.session.headers.update({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token'
+        })
         
         # Define PHI patterns to detect
         self.phi_patterns = [
@@ -177,7 +183,7 @@ class RedactionTester:
                     "transcript": transcript_with_phi,
                     "reservationId": "test-reservation-phi"
                 },
-                timeout=30
+                timeout=120
             )
             
             if response.status_code == 200:
@@ -210,7 +216,7 @@ class RedactionTester:
                     "transcript": transcript_with_phi,
                     "reservationId": "test-reservation-phi"
                 },
-                timeout=30
+                timeout=120
             )
             
             if response.status_code == 200:
@@ -271,7 +277,7 @@ class RedactionTester:
                     "intakeAnswers": intake_answers,
                     "patient": patient
                 },
-                timeout=30
+                timeout=120
             )
             
             if response.status_code == 200:

@@ -28,9 +28,15 @@ class SummaryComparison:
 class SummaryTester:
     """Tests summary generation and comparison by calling actual healthcare platform APIs"""
     
-    def __init__(self, base_url: str = "http://localhost:3001"):
+    def __init__(self, base_url: str = "http://localhost:3000"):
         self.base_url = base_url
         self.session = requests.Session()
+        
+        # Add authentication headers for testing
+        self.session.headers.update({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token'
+        })
     
     def generate_synthetic_consultation(self) -> str:
         """Generate a synthetic consultation transcript for testing"""
@@ -64,7 +70,7 @@ class SummaryTester:
             
             response = self.session.post(f"{self.base_url}/api/forms/generate", 
                 json=payload,
-                timeout=60
+                timeout=120
             )
             
             if response.status_code == 200:

@@ -169,7 +169,12 @@ CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no text before o
       return basePrompt + `
 Generate a JSON object for a Patient Summary with these fields. Use a caring, friendly, easy-to-understand tone. For common fields like medications and diagnosis, ensure the medical content aligns with the clinician summary but with patient-friendly language. Do NOT include patientName or date as these will be pre-filled.
 
-MANDATORY: Every field MUST contain source anchors [S1], [S2], [S3], etc. for ALL medical information.
+MANDATORY GROUNDING REQUIREMENTS:
+- EVERY field MUST contain source anchors [S1], [S2], [S3], etc. for ALL medical information
+- NO field can be empty or missing source anchors
+- Each field must have at least one [S#] anchor
+- Source anchors must be placed at the end of relevant medical statements
+- Example: "You have a headache [S1] and fever [S2] that we're monitoring closely [S3]"
 
 CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no text before or after. Ensure all string values are properly quoted and escaped. Use double quotes for all strings.
 
