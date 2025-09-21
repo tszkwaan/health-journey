@@ -194,14 +194,14 @@ class RealLatencyTester:
                 print(f"    Error: {measurement.error}")
     
     def test_combined_redaction_provenance_latency(self, phi_data: str, iterations: int = 5):
-        """Test combined redaction and provenance pipeline latency using parallel processing"""
+        """Test combined redaction and provenance pipeline latency using ultra-fast processing"""
         print(f"\n📊 Testing Combined Redaction + Provenance Pipeline ({len(phi_data)} chars)")
         print("-" * 50)
         
         for i in range(iterations):
             def run_combined_pipeline():
-                # Use parallel pipeline API for optimized processing
-                response = self.session.post(f"{self.base_url}/api/test/parallel-pipeline", 
+                # Use ultra-fast pipeline API for local processing
+                response = self.session.post(f"{self.base_url}/api/test/ultra-fast-pipeline", 
                     json={"data": phi_data},
                     timeout=30
                 )
@@ -214,7 +214,7 @@ class RealLatencyTester:
                 print(f"    Error: {measurement.error}")
     
     def test_parallel_batch_processing(self, phi_data: str, iterations: int = 3):
-        """Test parallel batch processing performance"""
+        """Test parallel batch processing performance with ultra-fast pipeline"""
         print(f"\n📊 Testing Parallel Batch Processing ({len(phi_data)} chars)")
         print("-" * 50)
         
@@ -223,13 +223,98 @@ class RealLatencyTester:
         
         for i in range(iterations):
             def run_batch_processing():
-                response = self.session.post(f"{self.base_url}/api/test/parallel-pipeline", 
-                    json={"data": batch_data, "batchSize": 5},
+                response = self.session.post(f"{self.base_url}/api/test/ultra-fast-pipeline", 
+                    json={"data": batch_data},
                     timeout=60
                 )
                 return response.status_code == 200
             
             measurement = self.measure_operation("parallel_batch_processing", run_batch_processing)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
+    def test_streaming_processing(self, phi_data: str, iterations: int = 3):
+        """Test streaming processing performance"""
+        print(f"\n📊 Testing Streaming Processing ({len(phi_data)} chars)")
+        print("-" * 50)
+        
+        for i in range(iterations):
+            def run_streaming_processing():
+                response = self.session.post(f"{self.base_url}/api/test/ultra-fast-pipeline", 
+                    json={"data": phi_data, "streaming": True, "chunkSize": 500},
+                    timeout=60
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation("streaming_processing", run_streaming_processing)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
+    def test_ultra_fast_processing(self, phi_data: str, iterations: int = 10):
+        """Test ultra-fast processing performance (targeting <100ms P95)"""
+        print(f"\n📊 Testing Ultra-Fast Processing ({len(phi_data)} chars)")
+        print("-" * 50)
+        
+        for i in range(iterations):
+            def run_ultra_fast():
+                response = self.session.post(f"{self.base_url}/api/test/ultra-fast-pipeline", 
+                    json={"data": phi_data},
+                    timeout=30
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation("ultra_fast_processing", run_ultra_fast)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
+    def test_ultra_optimized_processing(self, phi_data: str, iterations: int = 20):
+        """Test ultra-optimized processing performance (targeting <100ms P95)"""
+        print(f"\n📊 Testing Ultra-Optimized Processing ({len(phi_data)} chars)")
+        print("-" * 50)
+        
+        # Warm up the pipeline first
+        try:
+            self.session.get(f"{self.base_url}/api/test/ultra-optimized", timeout=10)
+        except:
+            pass
+        
+        for i in range(iterations):
+            def run_ultra_optimized():
+                response = self.session.post(f"{self.base_url}/api/test/ultra-optimized", 
+                    json={"data": phi_data},
+                    timeout=30
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation("ultra_optimized_processing", run_ultra_optimized)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
+    def test_ultra_optimized_batch(self, phi_data: str, iterations: int = 5):
+        """Test ultra-optimized batch processing performance"""
+        print(f"\n📊 Testing Ultra-Optimized Batch Processing ({len(phi_data)} chars)")
+        print("-" * 50)
+        
+        # Create batch data
+        batch_data = [phi_data] * 10  # Process 10 items in parallel
+        
+        for i in range(iterations):
+            def run_ultra_optimized_batch():
+                response = self.session.post(f"{self.base_url}/api/test/ultra-optimized", 
+                    json={"data": batch_data},
+                    timeout=60
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation("ultra_optimized_batch", run_ultra_optimized_batch)
             status = "✅" if measurement.success else "❌"
             print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
             if not measurement.success and measurement.error:
@@ -283,6 +368,10 @@ def main():
         tester.test_provenance_generation_latency(phi_data, iterations=10)
         tester.test_combined_redaction_provenance_latency(phi_data, iterations=5)
         tester.test_parallel_batch_processing(phi_data, iterations=3)
+        tester.test_streaming_processing(phi_data, iterations=3)
+        tester.test_ultra_fast_processing(phi_data, iterations=10)
+        tester.test_ultra_optimized_processing(phi_data, iterations=20)
+        tester.test_ultra_optimized_batch(phi_data, iterations=5)
     
     # Calculate and display results
     print("\n📊 Real Latency Results")
