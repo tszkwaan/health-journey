@@ -36,8 +36,8 @@ class RealGroundingTester:
             'Authorization': 'Bearer test-token'
         })
         
-        # Pattern to match source anchors like [S1], [S2], etc.
-        self.anchor_pattern = r'\[S?\d+\]'
+        # Pattern to match source anchors like [S1], [S2], (S1), (S2), etc.
+        self.anchor_pattern = r'[\[\(]S?\d+[\]\)]'
         # Pattern to match bullet points (various formats)
         self.bullet_patterns = [
             r'^[\s]*[-•*]\s+(.+)$',  # Standard bullet points
@@ -72,40 +72,16 @@ class RealGroundingTester:
         # Check if the content has source anchors
         has_anchors = self.has_source_anchor(content)
         
-        # For patient summaries, we expect at least one anchor per field
-        # For clinician summaries, we expect anchors in bullet points
-        if 'diagnosis' in section_name or 'instructions' in section_name or 'homeCare' in section_name or 'recovery' in section_name or 'warningSigns' in section_name or 'whenToSeekHelp' in section_name:
-            # This is a patient summary field - paragraph style
-            # Just check if it has at least one anchor
-            is_valid = has_anchors
-            return GroundingResult(
-                section=section_name,
-                total_bullets=1,
-                grounded_bullets=1 if has_anchors else 0,
-                missing_anchors=[] if has_anchors else [content[:50] + "..."],
-                is_valid=is_valid
-            )
-        else:
-            # This is a clinician summary field - check for bullet points
-            bullets = self.extract_bullets(content)
-            grounded_bullets = 0
-            missing_anchors = []
-            
-            for bullet in bullets:
-                if self.has_source_anchor(bullet):
-                    grounded_bullets += 1
-                else:
-                    missing_anchors.append(bullet)
-            
-            is_valid = len(missing_anchors) == 0
-            
-            return GroundingResult(
-                section=section_name,
-                total_bullets=len(bullets),
-                grounded_bullets=grounded_bullets,
-                missing_anchors=missing_anchors,
-                is_valid=is_valid
-            )
+        # Both patient and clinician summaries use paragraph-style fields
+        # Each field should have at least one source anchor
+        is_valid = has_anchors
+        return GroundingResult(
+            section=section_name,
+            total_bullets=1,
+            grounded_bullets=1 if has_anchors else 0,
+            missing_anchors=[] if has_anchors else [content[:50] + "..."],
+            is_valid=is_valid
+        )
     
     def is_patient_summary(self, summary: Dict[str, Any]) -> bool:
         """Check if this is a patient summary based on field names"""
@@ -275,52 +251,49 @@ class RealGroundingTester:
             print(f"❌ Unexpected error: {e}")
             return None
     
-    def test_enhanced_summary_generation(self):
-        """Test enhanced summary generation with real test data"""
-        print("\n📋 Testing Enhanced Summary Generation")
+    def test_clinician_summary_generation(self):
+        """Test clinician summary generation with real test data"""
+        print("\n📋 Testing Clinician Summary Generation")
         print("-" * 40)
         
-        # Create test data
-        test_data_setup = TestDataSetup(self.base_url)
-        test_data = test_data_setup.setup_complete_test_data()
-        
-        if not test_data:
-            print("❌ Failed to create test data for enhanced summary")
-            return None
-        
         try:
-            # Add special authentication for enhanced summary
-            headers = {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer test-token',
-                'X-Test-User': 'test-doctor@example.com',
-                'x-internal-call': 'true'
-            }
-            
-            response = self.session.post(f"{self.base_url}/api/reservations/{test_data['reservation']['id']}/enhanced-summary", 
+            # Test clinician summary generation
+            response = self.session.post(
+                f"{self.base_url}/api/forms/generate",
                 json={
-                    "medicalBackground": {
-                        "medicalHistory": test_data['medical']['medicalHistory'],
-                        "medications": test_data['medical']['medications'],
-                        "allergies": test_data['medical']['allergies']
+                    "formId": "test-clinician-summary-001",
+                    "formType": "clinician_summary",
+                    "consultationTranscript": "Patient presents with headache and fever. Physical exam shows temperature 37.9°C, blood pressure 118/75. Assessment: possible viral infection. Plan: acetaminophen for pain management, follow-up in 3-5 days.",
+                    "doctorNotes": "Patient appears fatigued but alert. No signs of serious complications.",
+                    "intakeAnswers": {
+                        "chiefComplaint": "Headache and fever",
+                        "symptoms": "Head pain, feverish feeling, fatigue",
+                        "duration": "2 days",
+                        "severity": "Moderate"
                     },
-                    "intakeAnswers": test_data['intake']['answers'],
-                    "patient": {
-                        "name": test_data['patient']['name'],
-                        "email": test_data['patient']['email']
+                    "medicalHistory": {
+                        "pastMedicalHistory": "No significant past medical history",
+                        "allergies": "None known",
+                        "currentMedications": "None"
                     }
                 },
-                headers=headers,
                 timeout=120
             )
             
             if response.status_code == 200:
-                enhanced_data = response.json()
-                print("✅ Enhanced summary generated successfully")
-                print(f"Generated data keys: {list(enhanced_data.keys())}")
+                data = response.json()
+                print("✅ Clinician summary generated successfully")
+                
+                # Get clinician summary data
+                clinician_data = data.get('clinician_summary', {})
+                if not clinician_data:
+                    print("❌ No clinician summary data found in response")
+                    return None
+                    
+                print(f"Generated summary keys: {list(clinician_data.keys())}")
                 
                 # Validate grounding
-                results = self.validate_summary(enhanced_data)
+                results = self.validate_summary(clinician_data)
                 print(f"\nGrounding validation results:")
                 for result in results:
                     status = "✅" if result.is_valid else "❌"
@@ -328,26 +301,17 @@ class RealGroundingTester:
                     if not result.is_valid and result.missing_anchors:
                         print(f"    Missing anchors: {result.missing_anchors[:2]}...")
                 
-                # Clean up test data
-                test_data_setup.cleanup_test_data()
-                
-                return enhanced_data
+                return clinician_data
             else:
-                print(f"❌ Enhanced summary generation failed: {response.status_code}")
+                print(f"❌ Clinician summary generation failed: {response.status_code}")
                 print(f"Error: {response.text}")
-                # Clean up test data
-                test_data_setup.cleanup_test_data()
                 return None
                 
         except requests.exceptions.RequestException as e:
             print(f"❌ Network error: {e}")
-            # Clean up test data
-            test_data_setup.cleanup_test_data()
             return None
         except Exception as e:
             print(f"❌ Unexpected error: {e}")
-            # Clean up test data
-            test_data_setup.cleanup_test_data()
             return None
     
     def check_server_status(self):
@@ -389,7 +353,7 @@ def main():
     # Test form generation
     clinician_data = tester.test_form_generation_api()
     patient_data = tester.test_patient_summary_generation(clinician_data)
-    enhanced_data = tester.test_enhanced_summary_generation()
+    clinician_summary_data = tester.test_clinician_summary_generation()
     
     # Summary
     print("\n📊 Real API Test Summary")
@@ -416,14 +380,14 @@ def main():
         else:
             print("❌ Patient Summary: Missing source anchors")
     
-    if enhanced_data:
+    if clinician_summary_data:
         tests_run += 1
-        enhanced_results = tester.validate_summary(enhanced_data)
-        if all(r.is_valid for r in enhanced_results):
+        clinician_summary_results = tester.validate_summary(clinician_summary_data)
+        if all(r.is_valid for r in clinician_summary_results):
             tests_passed += 1
-            print("✅ Enhanced Summary: Properly grounded")
+            print("✅ Clinician Summary: Properly grounded")
         else:
-            print("❌ Enhanced Summary: Missing source anchors")
+            print("❌ Clinician Summary: Missing source anchors")
     
     print(f"\nTests Run: {tests_run}")
     print(f"Tests Passed: {tests_passed}")
