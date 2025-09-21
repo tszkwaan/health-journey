@@ -306,7 +306,7 @@ class RealGroundingTester:
                 return False
         except requests.exceptions.RequestException as e:
             print(f"❌ Cannot connect to server: {e}")
-            print("Please ensure the healthcare platform is running on http://localhost:3000")
+            print("Please ensure the healthcare platform is running on http://localhost:3001")
             return False
 
 def main():

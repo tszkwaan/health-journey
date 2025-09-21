@@ -33,7 +33,7 @@ class RedactionResult:
 class RedactionTester:
     """Tests PHI redaction by calling actual healthcare platform APIs"""
     
-    def __init__(self, base_url: str = "http://localhost:3000"):
+    def __init__(self, base_url: str = "http://localhost:3001"):
         self.base_url = base_url
         self.session = requests.Session()
         
