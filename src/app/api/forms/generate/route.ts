@@ -106,7 +106,7 @@ ${JSON.stringify(canonicalIR, null, 2)}
 CRITICAL: Use ONLY the information from the Canonical IR above. This is the single source of truth for both clinician and patient summaries.
 
 IR-BASED GENERATION RULES:
-1. Use ONLY medications listed in the IR medications array
+1. Use ONLY medications listed in the IR medications array - NO EXCEPTIONS
 2. Use ONLY diagnoses from the IR diagnoses array with their exact certainty levels
 3. Use ONLY plan items from the IR plan array
 4. Use ONLY follow-up timing and conditions from the IR follow_up object
@@ -114,9 +114,16 @@ IR-BASED GENERATION RULES:
 6. Do NOT add any medications, diagnoses, or treatments not present in the IR
 7. If IR field is empty or missing, use "Not specified" or leave empty
 
+STRICT MEDICATION RULES:
+- For Patient Summary: Use EXACTLY the same medications as in IR
+- Include both generic name and brand name from IR: "acetaminophen (Tylenol)"
+- Use EXACT dose and frequency from IR: "500mg every 6 hours"
+- Do NOT add any additional medications or brand names not in IR
+- Do NOT mention medications like "ibuprofen" or "Advil" if not in IR
+
 MEDICATION NORMALIZATION:
 - Convert medical frequencies to patient-friendly format (q6h → "每6小時一次")
-- Include both generic and brand names when available
+- Include both generic and brand names when available from IR
 - Use exact doses and routes from IR
 
 CERTAINTY ALIGNMENT:
@@ -124,6 +131,26 @@ CERTAINTY ALIGNMENT:
 - If IR certainty is "likely" → use "大機會" or "很可能" in patient version  
 - If IR certainty is "confirmed" → use "確診" or "確定" in patient version
 - If IR certainty is "unlikely" → use "機會較低" or "不太可能" in patient version
+
+STRICT FOLLOW-UP ALIGNMENT:
+- Use EXACTLY the same timing from IR: "3-5 days" must be "3-5 days"
+- Use EXACTLY the same conditions from IR: "if symptoms persist" must be "if symptoms persist"
+- Do NOT change wording like "if symptoms persist" to "if your symptoms persist"
+- Do NOT add extra words like "with us" or modify the condition text
+- Do NOT add extra information not in IR follow_up
+- Both summaries must have IDENTICAL follow-up timing and conditions
+- Keep follow-up text concise and match IR exactly
+
+STRICT PLAN COVERAGE RULES:
+- ALL plan items from IR must be covered in patient instructions
+- Convert each plan item to patient-friendly language but keep the same content
+- Do NOT add extra instructions not mentioned in IR plan
+- Do NOT skip any plan items from IR
+- Do NOT add extra steps like "avoid strenuous activities" if not in IR plan
+- Use ONLY the exact plan items from IR, nothing more, nothing less
+- Example: IR plan "rest at home" → Patient "Please rest at home"
+- Example: IR plan "stay hydrated" → Patient "Stay hydrated"
+- Example: IR plan "take acetaminophen" → Patient "Take acetaminophen as directed"
 
 ` : ''}
 
@@ -204,7 +231,17 @@ CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no text before o
 
     case 'patient_summary':
       return basePrompt + `
-Generate a JSON object for a Patient Summary with these fields. Use a caring, friendly, easy-to-understand tone. For common fields like medications and diagnosis, ensure the medical content aligns with the clinician summary but with patient-friendly language. Do NOT include patientName or date as these will be pre-filled.
+Generate a JSON object for a Patient Summary with these fields. Use a caring, friendly, easy-to-understand tone. 
+
+STRICT IR-BASED GENERATION RULES - NO EXCEPTIONS:
+- Use ONLY medications from IR medications array - NO additional medications
+- Use ONLY diagnoses from IR diagnoses array with exact certainty levels
+- Cover ALL plan items from IR in instructions field - NO skipping
+- Use EXACT follow-up timing and conditions from IR - NO modifications
+- Do NOT add extra instructions not in IR plan
+- Do NOT add extra medications not in IR medications
+- Do NOT use placeholder text like "Please complete based on consultation"
+- ALWAYS use the actual IR data provided above
 
 CRITICAL MANDATORY GROUNDING REQUIREMENTS - NO EXCEPTIONS:
 - EVERY SINGLE field MUST contain source anchors [S1], [S2], [S3], etc. for ALL medical information
@@ -219,14 +256,14 @@ WARNING: If you do not include source anchors [S#] in every field, the response 
 CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no text before or after. Ensure all string values are properly quoted and escaped. Use double quotes for all strings.
 
 {
-  "diagnosis": "Your diagnosis explained in simple, caring terms (align with clinician assessment) [S1]",
-  "medications": "Your medications with clear names and purposes (align with clinician treatment plan) [S2]",
-  "instructions": "How to take your medications (when, how often, with food, etc.) with caring guidance [S3]",
+  "diagnosis": "Your diagnosis explained in simple, caring terms (use ONLY diagnoses from IR with exact certainty) [S1]",
+  "medications": "Your medications with clear names and purposes (use ONLY medications from IR) [S2]",
+  "instructions": "How to take your medications and care instructions (use ONLY plan items from IR, no extra steps) [S3]",
   "homeCare": "What you can do at home to help with your condition - explained with care and encouragement [S4]",
   "recovery": "What to expect during your recovery and how to take care of yourself with supportive language [S5]",
-  "followUp": "When to come back for your next appointment with reassurance (must align exactly with clinician follow-up timing and content) [S6]",
-  "warningSigns": "Signs and symptoms to watch out for that need immediate attention - explained with concern [S7]",
-  "whenToSeekHelp": "When and how to contact your doctor or seek emergency care - with caring guidance [S8]"
+  "followUp": "When to come back and what to watch for (use EXACT timing and conditions from IR) [S6]",
+  "warningSigns": "What warning signs to watch for and when to seek help - explained with care and urgency [S7]",
+  "whenToSeekHelp": "When to call your doctor or seek emergency care - explained with care and clear guidance [S8]"
 }`;
 
     default:

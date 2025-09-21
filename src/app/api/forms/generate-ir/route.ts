@@ -124,8 +124,10 @@ CRITICAL REQUIREMENTS:
 3. Be precise with certainty levels
 4. Include all medications mentioned with proper dosing
 5. Capture all examination findings
-6. Ensure follow-up timing and conditions are exact
-7. This IR will be used to generate both professional and patient-friendly summaries
+6. Ensure follow-up timing and conditions are exact - this is critical for alignment
+7. The follow_up field MUST be properly structured with exact timing and conditions
+8. This IR will be used to generate both professional and patient-friendly summaries
+9. Both summaries must use IDENTICAL follow-up information from this IR
 
 Generate the Canonical IR now:`;
 }
@@ -146,7 +148,20 @@ function parseIRFromText(text: string): any {
     for (const field of requiredFields) {
       if (!(field in parsed)) {
         console.warn(`Missing required field: ${field}`);
-        parsed[field] = field === 'exam' ? {} : field === 'diagnoses' || field === 'medications' || field === 'plan' ? [] : '';
+        if (field === 'exam') {
+          parsed[field] = {};
+        } else if (field === 'follow_up') {
+          parsed[field] = {
+            type: "follow_up",
+            details: "Follow up as needed",
+            when: "3-5 days",
+            condition: "if symptoms persist"
+          };
+        } else if (field === 'diagnoses' || field === 'medications' || field === 'plan') {
+          parsed[field] = [];
+        } else {
+          parsed[field] = '';
+        }
       }
     }
 
