@@ -19,6 +19,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(reservation);
   } catch (error) {
     console.error('Error creating test reservation:', error);
-    return NextResponse.json({ error: 'Failed to create reservation' }, { status: 500 });
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    return NextResponse.json({ 
+      error: 'Failed to create reservation', 
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    }, { status: 500 });
   }
 }

@@ -10,13 +10,16 @@ export async function POST(request: NextRequest) {
       data: {
         name: data.name,
         email: data.email,
-        phone: data.phone,
         role: 'DOCTOR',
+        passwordHash: 'test-password-hash', // Required field for testing
+        voiceAIConsent: false, // Default value
         doctorProfile: {
           create: {
+            name: data.name,
+            email: data.email,
             specialization: data.specialization || 'Family Medicine',
-            licenseNumber: `TEST-${Date.now()}`,
-            yearsOfExperience: 5
+            bio: 'Test doctor for automated testing',
+            phone: data.phone || '555-0123'
           }
         }
       },
@@ -28,6 +31,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(doctor);
   } catch (error) {
     console.error('Error creating test doctor:', error);
-    return NextResponse.json({ error: 'Failed to create doctor' }, { status: 500 });
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    return NextResponse.json({ 
+      error: 'Failed to create doctor', 
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    }, { status: 500 });
   }
 }

@@ -10,8 +10,9 @@ export async function POST(request: NextRequest) {
       data: {
         name: data.name,
         email: data.email,
-        phone: data.phone,
-        role: 'PATIENT'
+        role: 'PATIENT',
+        passwordHash: 'test-password-hash', // Required field for testing
+        voiceAIConsent: false // Default value
       }
     });
     
