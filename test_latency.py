@@ -320,6 +320,100 @@ class RealLatencyTester:
             if not measurement.success and measurement.error:
                 print(f"    Error: {measurement.error}")
     
+    def test_wasm_redaction(self, phi_data: str, iterations: int = 15):
+        """Test WASM-based redaction performance"""
+        print(f"\n📊 Testing WASM Redaction ({len(phi_data)} chars)")
+        print("-" * 50)
+        
+        # Initialize WASM module first
+        try:
+            self.session.get(f"{self.base_url}/api/test/wasm-redaction", timeout=10)
+        except:
+            pass
+        
+        for i in range(iterations):
+            def run_wasm_redaction():
+                response = self.session.post(f"{self.base_url}/api/test/wasm-redaction", 
+                    json={"data": phi_data, "withStats": True},
+                    timeout=30
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation("wasm_redaction", run_wasm_redaction)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
+    def test_wasm_batch_redaction(self, phi_data: str, iterations: int = 5):
+        """Test WASM batch redaction performance"""
+        print(f"\n📊 Testing WASM Batch Redaction ({len(phi_data)} chars)")
+        print("-" * 50)
+        
+        # Create batch data
+        batch_data = [phi_data] * 10  # Process 10 items in parallel
+        
+        for i in range(iterations):
+            def run_wasm_batch():
+                response = self.session.post(f"{self.base_url}/api/test/wasm-redaction", 
+                    json={"data": batch_data, "batch": True},
+                    timeout=60
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation("wasm_batch_redaction", run_wasm_batch)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
+    def test_worker_redaction(self, phi_data: str, iterations: int = 15):
+        """Test Worker Threads redaction performance"""
+        print(f"\n📊 Testing Worker Threads Redaction ({len(phi_data)} chars)")
+        print("-" * 50)
+        
+        # Initialize worker threads first
+        try:
+            self.session.get(f"{self.base_url}/api/test/worker-redaction", timeout=10)
+        except:
+            pass
+        
+        for i in range(iterations):
+            def run_worker_redaction():
+                response = self.session.post(f"{self.base_url}/api/test/worker-redaction", 
+                    json={"data": phi_data},
+                    timeout=30
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation("worker_redaction", run_worker_redaction)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
+    def test_worker_batch_redaction(self, phi_data: str, iterations: int = 5):
+        """Test Worker Threads batch redaction performance"""
+        print(f"\n📊 Testing Worker Threads Batch Redaction ({len(phi_data)} chars)")
+        print("-" * 50)
+        
+        # Create batch data
+        batch_data = [phi_data] * 10  # Process 10 items in parallel
+        
+        for i in range(iterations):
+            def run_worker_batch():
+                response = self.session.post(f"{self.base_url}/api/test/worker-redaction", 
+                    json={"data": batch_data, "batch": True},
+                    timeout=60
+                )
+                return response.status_code == 200
+            
+            measurement = self.measure_operation("worker_batch_redaction", run_worker_batch)
+            status = "✅" if measurement.success else "❌"
+            print(f"  {status} Iteration {i+1}: {measurement.duration_ms:.2f}ms")
+            if not measurement.success and measurement.error:
+                print(f"    Error: {measurement.error}")
+    
     def check_server_status(self):
         """Check if the healthcare platform server is running"""
         print("🔍 Checking Server Status")
@@ -372,6 +466,10 @@ def main():
         tester.test_ultra_fast_processing(phi_data, iterations=10)
         tester.test_ultra_optimized_processing(phi_data, iterations=20)
         tester.test_ultra_optimized_batch(phi_data, iterations=5)
+        tester.test_wasm_redaction(phi_data, iterations=15)
+        tester.test_wasm_batch_redaction(phi_data, iterations=5)
+        tester.test_worker_redaction(phi_data, iterations=15)
+        tester.test_worker_batch_redaction(phi_data, iterations=5)
     
     # Calculate and display results
     print("\n📊 Real Latency Results")
