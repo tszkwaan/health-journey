@@ -264,7 +264,7 @@ class RedactionTester:
         return results
     
     def test_enhanced_summary_with_phi(self):
-        """Test enhanced summary with PHI-containing data"""
+        """Test enhanced summary with PHI-containing data using test-friendly endpoint"""
         print("\n📋 Testing Enhanced Summary PHI Redaction")
         print("-" * 40)
         

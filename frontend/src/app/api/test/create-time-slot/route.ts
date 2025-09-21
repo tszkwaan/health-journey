@@ -5,23 +5,23 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     
-    // Create reservation
-    const reservation = await prisma.reservation.create({
+    // Create time slot
+    const timeSlot = await prisma.timeSlot.create({
       data: {
-        patientId: data.patientId,
         doctorId: data.doctorId,
-        timeSlotId: data.timeSlotId,
-        status: data.status || 'PENDING_INTAKE',
-        reason: data.reason || 'Test consultation'
+        date: new Date(data.date),
+        startTime: data.startTime,
+        endTime: data.endTime,
+        isAvailable: data.isAvailable || true
       }
     });
     
-    return NextResponse.json(reservation);
+    return NextResponse.json(timeSlot);
   } catch (error) {
-    console.error('Error creating test reservation:', error);
+    console.error('Error creating test time slot:', error);
     console.error('Error details:', JSON.stringify(error, null, 2));
     return NextResponse.json({ 
-      error: 'Failed to create reservation', 
+      error: 'Failed to create time slot', 
       details: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 });

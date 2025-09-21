@@ -25,9 +25,11 @@ class TestDataSetup:
     
     def create_test_doctor(self):
         """Create a test doctor"""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         doctor_data = {
-            "name": "Dr. Test Doctor",
-            "email": "test.doctor@example.com",
+            "name": f"Dr. Test Doctor {unique_id}",
+            "email": f"test.doctor.{unique_id}@example.com",
             "phone": "555-0123",
             "specialization": "Family Medicine",
             "role": "DOCTOR"
@@ -38,9 +40,15 @@ class TestDataSetup:
                 json=doctor_data, timeout=30)
             if response.status_code == 200:
                 doctor = response.json()
-                self.created_doctors.append(doctor['id'])
+                doctor_data = {
+                    'id': doctor['doctorProfile']['id'],  # Use doctor profile ID
+                    'userId': doctor['id'],  # Keep user ID for cleanup
+                    'name': doctor['name'],
+                    'email': doctor['email']
+                }
+                self.created_doctors.append(doctor_data)
                 print(f"✅ Created test doctor: {doctor['id']}")
-                return doctor
+                return doctor_data
             else:
                 print(f"❌ Failed to create doctor: {response.status_code}")
                 return None
@@ -50,9 +58,11 @@ class TestDataSetup:
     
     def create_test_patient(self):
         """Create a test patient"""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         patient_data = {
-            "name": "Test Patient",
-            "email": "test.patient@example.com",
+            "name": f"Test Patient {unique_id}",
+            "email": f"test.patient.{unique_id}@example.com",
             "phone": "555-0456",
             "role": "PATIENT"
         }
@@ -74,15 +84,35 @@ class TestDataSetup:
     
     def create_test_reservation(self, patient_id: str, doctor_id: str):
         """Create a test reservation"""
-        reservation_data = {
-            "patientId": patient_id,
+        # First create a time slot for the doctor
+        time_slot_data = {
             "doctorId": doctor_id,
-            "appointmentTime": (datetime.now() + timedelta(days=1)).isoformat(),
-            "status": "PENDING_INTAKE",
-            "reason": "Test consultation for grounding validation"
+            "date": (datetime.now() + timedelta(days=1)).isoformat(),
+            "startTime": "09:00",
+            "endTime": "10:00",
+            "isAvailable": True
         }
         
         try:
+            # Create time slot using the doctor profile ID
+            ts_response = self.session.post(f"{self.base_url}/api/test/create-time-slot", 
+                json=time_slot_data, timeout=30)
+            if ts_response.status_code != 200:
+                print(f"❌ Failed to create time slot: {ts_response.status_code}")
+                print(f"Error: {ts_response.text}")
+                return None
+            
+            time_slot = ts_response.json()
+            
+            # Now create reservation with time slot
+            reservation_data = {
+                "patientId": patient_id,
+                "doctorId": doctor_id,  # This should be the doctor profile ID
+                "timeSlotId": time_slot['id'],
+                "status": "PENDING_INTAKE",
+                "reason": "Test consultation for grounding validation"
+            }
+            
             response = self.session.post(f"{self.base_url}/api/test/create-reservation", 
                 json=reservation_data, timeout=30)
             if response.status_code == 200:
@@ -92,6 +122,7 @@ class TestDataSetup:
                 return reservation
             else:
                 print(f"❌ Failed to create reservation: {response.status_code}")
+                print(f"Error: {response.text}")
                 return None
         except Exception as e:
             print(f"❌ Error creating reservation: {e}")
@@ -208,9 +239,13 @@ class TestDataSetup:
             except Exception as e:
                 print(f"⚠️ Error cleaning up patient {patient_id}: {e}")
         
-        # Clean up doctors
-        for doctor_id in self.created_doctors:
+        # Clean up doctors (use userId for deletion)
+        for doctor_data in self.created_doctors:
             try:
+                if isinstance(doctor_data, dict) and 'userId' in doctor_data:
+                    doctor_id = doctor_data['userId']
+                else:
+                    doctor_id = doctor_data
                 self.session.delete(f"{self.base_url}/api/test/doctors/{doctor_id}", timeout=30)
                 print(f"✅ Cleaned up doctor: {doctor_id}")
             except Exception as e:
