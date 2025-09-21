@@ -7,18 +7,17 @@ A comprehensive healthcare platform that streamlines patient care from intake th
 ### Prerequisites
 - Node.js 20+
 - Python 3.8+
-- PostgreSQL
-- Docker (optional)
+- Docker (for database and Ollama LLM)
 
 ### 1. Install Dependencies
 ```bash
 npm run install:all
 ```
 
-### 2. Setup Database
+### 2. Setup Services
 ```bash
-# Start PostgreSQL
-docker-compose up db -d
+# Start database and Ollama LLM
+docker compose up db ollama -d
 
 # Run migrations
 cd frontend
@@ -29,12 +28,11 @@ npx prisma db seed
 
 ### 3. Start Application
 ```bash
-# Start frontend (Next.js)
-npm run dev
+# Option 1: Start all services with Docker
+docker compose up
 
-# Start backend (optional)
-cd backend
-uvicorn app.main:app --reload --port 8000
+# Option 2: Start manually
+npm run dev  # Frontend only
 ```
 
 ### 4. Run Tests
@@ -78,11 +76,11 @@ npm run test:redaction # PHI redaction tests
 
 ## Docker
 ```bash
-docker-compose up    # Start all services
+docker compose up    # Start all services
 ```
 
 ## Tech Stack
 - **Frontend**: Next.js 15, TypeScript, Tailwind CSS, Prisma
-- **Backend**: Python FastAPI, LangChain, Ollama
-- **Database**: PostgreSQL
-- **AI**: Ollama LLM, RAG with PubMed
+- **Backend**: Python FastAPI, LangChain
+- **Database**: PostgreSQL (Docker)
+- **AI**: Ollama LLM (Docker), RAG with PubMed
