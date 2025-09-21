@@ -447,7 +447,7 @@ CRITICAL INSTRUCTIONS:
 - Do not include code blocks or markdown formatting
 - Do not include any text before or after the JSON
 - Use simple text lists within the string values (no special characters)
-- Always include citation numbers [1], [2], etc. for each piece of information
+- Always include citation numbers [S1], [S2], etc. for each piece of information
 - If information is missing, use "Not provided" or "Unknown"
 - Keep each point concise and actionable
 - Use medical terminology appropriately

@@ -131,10 +131,14 @@ INSTRUCTIONS:
 - NEVER use different follow-up timing between the two forms - they must be identical
 - NEVER mention medications in Patient Summary that aren't mentioned in Clinician Summary
 - NEVER use placeholder text like [X] or [insert date] - always use actual numbers and specific timing
-- Add citation numbers [1], [2], etc. to key medical statements that reference the consultation transcript
-- Use citation numbers sparingly - only for important medical findings, symptoms, or treatments mentioned in the transcript
-- Example: "Patient presents with cough and fever [1] for 3 days [2]" where [1] and [2] reference specific transcript entries
-- Include citation numbers in sentences that directly reference information from the consultation
+
+MANDATORY GROUNDING REQUIREMENTS:
+- EVERY field that contains medical information MUST have source anchors [S1], [S2], [S3], etc.
+- EVERY bullet point, numbered list item, or medical statement MUST be traceable to the consultation transcript
+- Use citation numbers [S1], [S2], [S3], etc. for ALL medical findings, symptoms, treatments, and recommendations
+- Example: "Patient presents with headache [S1] and fever [S2]" where [S1] and [S2] reference specific transcript entries
+- Example: "• Temperature: 37.9°C [S3]\n• Blood pressure: 118/75 [S4]" - each bullet point must have a source anchor
+- Example: "1. Prescribe acetaminophen [S5]\n2. Monitor symptoms [S6]" - each numbered item must have a source anchor
 - If information is not available, use "Not specified" or leave empty
 - Return ONLY a JSON object with the form data
 
@@ -147,33 +151,37 @@ FORM TYPE: ${formType}
       return basePrompt + `
 Generate a JSON object for a Clinician Summary with these fields. Use professional medical terminology and clinical language. Do NOT include patientName, dateOfBirth, dateOfVisit, pastMedicalHistory, or allergies as these will be pre-filled.
 
+MANDATORY: Every field MUST contain source anchors [S1], [S2], [S3], etc. for ALL medical information.
+
 CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no text before or after. Ensure all string values are properly quoted and escaped. Use double quotes for all strings.
 
 {
-  "chiefComplaint": "Primary reason for visit [1]",
-  "historyOfPresentIllness": "Detailed description of current symptoms and their progression [2]",
-  "medications": "Current medications and dosages",
-  "physicalExam": "Key physical examination findings [3]",
-  "assessment": "Clinical assessment and differential diagnosis",
-  "plan": "Treatment plan including medications, procedures, and recommendations",
-  "followUp": "Follow-up schedule and next steps"
+  "chiefComplaint": "Primary reason for visit [S1]",
+  "historyOfPresentIllness": "Detailed description of current symptoms and their progression [S2]",
+  "medications": "Current medications and dosages [S3]",
+  "physicalExam": "Key physical examination findings [S4]",
+  "assessment": "Clinical assessment and differential diagnosis [S5]",
+  "plan": "Treatment plan including medications, procedures, and recommendations [S6]",
+  "followUp": "Follow-up schedule and next steps [S7]"
 }`;
 
     case 'patient_summary':
       return basePrompt + `
 Generate a JSON object for a Patient Summary with these fields. Use a caring, friendly, easy-to-understand tone. For common fields like medications and diagnosis, ensure the medical content aligns with the clinician summary but with patient-friendly language. Do NOT include patientName or date as these will be pre-filled.
 
+MANDATORY: Every field MUST contain source anchors [S1], [S2], [S3], etc. for ALL medical information.
+
 CRITICAL: Return ONLY valid JSON. No markdown, no explanations, no text before or after. Ensure all string values are properly quoted and escaped. Use double quotes for all strings.
 
 {
-  "diagnosis": "Your diagnosis explained in simple, caring terms (align with clinician assessment) [1]",
-  "medications": "Your medications with clear names and purposes (align with clinician treatment plan)",
-  "instructions": "How to take your medications (when, how often, with food, etc.) with caring guidance",
-  "homeCare": "What you can do at home to help with your condition - explained with care and encouragement [2]",
-  "recovery": "What to expect during your recovery and how to take care of yourself with supportive language",
-  "followUp": "When to come back for your next appointment with reassurance (must align exactly with clinician follow-up timing and content)",
-  "warningSigns": "Signs and symptoms to watch out for that need immediate attention - explained with concern",
-  "whenToSeekHelp": "When and how to contact your doctor or seek emergency care - with caring guidance"
+  "diagnosis": "Your diagnosis explained in simple, caring terms (align with clinician assessment) [S1]",
+  "medications": "Your medications with clear names and purposes (align with clinician treatment plan) [S2]",
+  "instructions": "How to take your medications (when, how often, with food, etc.) with caring guidance [S3]",
+  "homeCare": "What you can do at home to help with your condition - explained with care and encouragement [S4]",
+  "recovery": "What to expect during your recovery and how to take care of yourself with supportive language [S5]",
+  "followUp": "When to come back for your next appointment with reassurance (must align exactly with clinician follow-up timing and content) [S6]",
+  "warningSigns": "Signs and symptoms to watch out for that need immediate attention - explained with concern [S7]",
+  "whenToSeekHelp": "When and how to contact your doctor or seek emergency care - with caring guidance [S8]"
 }`;
 
     default:
@@ -329,8 +337,8 @@ function addCitationsToFormData(formType: string, formData: Record<string, any>,
         });
         
         // Add citation number to the content if it doesn't already have one
-        if (!content.includes(`[${citationId}]`)) {
-          formData[field] = content + ` [${citationId}]`;
+        if (!content.includes(`[S${citationId}]`)) {
+          formData[field] = content + ` [S${citationId}]`;
         }
         
         citationId++;

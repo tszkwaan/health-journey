@@ -71,6 +71,7 @@ Rules:
 4. For lists, use comma-separated values
 5. If information is missing or unclear, use 'not specified'
 6. Keep medical terminology accurate but simplified
+7. Add source anchors [S1], [S2], etc. to all medical information extracted from the transcript
 
 Return ONLY the JSON object, no other text.`;
 
