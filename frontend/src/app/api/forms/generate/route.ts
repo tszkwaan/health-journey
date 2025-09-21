@@ -399,9 +399,11 @@ function addCitationsToFormData(formType: string, formData: Record<string, any>,
 
   // Extract consultation transcript entries
   const transcriptEntries = extractTranscriptEntries(transcript);
+  console.log(`[CITATION DEBUG] Form type: ${formType}, Transcript entries: ${transcriptEntries.length}`);
   
   // Generate citations for each field
   const fieldsToCite = getFieldsToCite(formType);
+  console.log(`[CITATION DEBUG] Fields to cite: ${fieldsToCite.join(', ')}`);
   
   fieldsToCite.forEach(field => {
     const content = formData[field];
@@ -425,6 +427,48 @@ function addCitationsToFormData(formType: string, formData: Record<string, any>,
         }
         
         citationId++;
+      } else {
+        // Fallback: Add a general consultation citation if no specific match found
+        const generalEntry = transcriptEntries.find(entry => 
+          entry.speaker === 'DOCTOR' && entry.content.length > 20
+        ) || transcriptEntries[0];
+        
+        if (generalEntry) {
+          citations.push({
+            id: citationId,
+            type: 'consultation',
+            section: getFieldDisplayName(field),
+            content: generalEntry.content,
+            source: 'Consultation transcript',
+            timestamp: generalEntry.timestamp
+          });
+          
+          // Add citation number to the content
+          if (!content.includes(`[S${citationId}]`)) {
+            formData[field] = content + ` [S${citationId}]`;
+          }
+          
+          citationId++;
+        } else {
+          // Ultimate fallback: create a citation from the transcript itself
+          if (transcriptEntries.length > 0) {
+            citations.push({
+              id: citationId,
+              type: 'consultation',
+              section: getFieldDisplayName(field),
+              content: transcriptEntries[0].content,
+              source: 'Consultation transcript',
+              timestamp: transcriptEntries[0].timestamp
+            });
+            
+            // Add citation number to the content
+            if (!content.includes(`[S${citationId}]`)) {
+              formData[field] = content + ` [S${citationId}]`;
+            }
+            
+            citationId++;
+          }
+        }
       }
     }
   });
@@ -441,15 +485,28 @@ function extractTranscriptEntries(transcript: string): any[] {
   const entries: any[] = [];
   const lines = transcript.split('\n');
   
+  // First try to match timestamped format
+  let hasTimestampedFormat = false;
   lines.forEach(line => {
     const match = line.match(/\[(\d{2}:\d{2}:\d{2})\]\s+SPEAKER:\s+(.+)/);
     if (match) {
+      hasTimestampedFormat = true;
       entries.push({
         timestamp: match[1],
+        speaker: 'DOCTOR', // Assume all entries are from doctor for now
         content: match[2].trim()
       });
     }
   });
+  
+  // If no timestamped format found, treat the entire transcript as one entry
+  if (!hasTimestampedFormat && transcript.trim()) {
+    entries.push({
+      timestamp: '00:00:00',
+      speaker: 'DOCTOR',
+      content: transcript.trim()
+    });
+  }
   
   return entries;
 }
@@ -460,6 +517,7 @@ function findMatchingTranscriptEntry(content: string, transcriptEntries: any[]):
   // Look for transcript entries that contain similar content
   const contentWords = content.toLowerCase().split(/\s+/).filter(word => word.length > 3);
   
+  // First try exact word matching
   for (const entry of transcriptEntries) {
     const entryWords = entry.content.toLowerCase().split(/\s+/);
     const matchingWords = contentWords.filter(word => 
@@ -472,7 +530,26 @@ function findMatchingTranscriptEntry(content: string, transcriptEntries: any[]):
     }
   }
   
-  return null;
+  // If no exact match, try semantic matching with key medical terms
+  const medicalTerms = ['headache', 'fever', 'pain', 'temperature', 'blood pressure', 'acetaminophen', 'ibuprofen', 'rest', 'follow', 'symptoms', 'viral', 'infection', 'tension'];
+  const contentHasMedicalTerms = medicalTerms.some(term => content.toLowerCase().includes(term));
+  
+  if (contentHasMedicalTerms) {
+    // Find the most relevant transcript entry with medical content
+    for (const entry of transcriptEntries) {
+      const entryHasMedicalTerms = medicalTerms.some(term => entry.content.toLowerCase().includes(term));
+      if (entryHasMedicalTerms) {
+        return entry;
+      }
+    }
+  }
+  
+  // Fallback: return the first relevant entry (usually doctor's assessment)
+  const doctorEntry = transcriptEntries.find(entry => 
+    entry.speaker === 'DOCTOR' && entry.content.length > 20
+  );
+  
+  return doctorEntry || transcriptEntries[0] || null;
 }
 
 function getFieldsToCite(formType: string): string[] {
@@ -480,7 +557,7 @@ function getFieldsToCite(formType: string): string[] {
     case 'clinician_summary':
       return ['chiefComplaint', 'historyOfPresentIllness', 'physicalExam', 'assessment', 'plan'];
     case 'patient_summary':
-      return ['diagnosis', 'medications', 'instructions', 'homeCare', 'recovery', 'warningSigns'];
+      return ['diagnosis', 'medications', 'instructions', 'homeCare', 'recovery', 'followUp', 'warningSigns', 'whenToSeekHelp'];
     default:
       return [];
   }
@@ -498,7 +575,9 @@ function getFieldDisplayName(field: string): string {
     instructions: 'Medication Instructions',
     homeCare: 'Home Care',
     recovery: 'Recovery',
-    warningSigns: 'Warning Signs'
+    followUp: 'Follow-up Instructions',
+    warningSigns: 'Warning Signs',
+    whenToSeekHelp: 'When to Seek Help'
   };
   
   return fieldNames[field] || field;

@@ -261,9 +261,9 @@ class RealGroundingTester:
             response = self.session.post(
                 f"{self.base_url}/api/forms/generate",
                 json={
-                    "formId": "test-clinician-summary-001",
-                    "formType": "clinician_summary",
-                    "consultationTranscript": "Patient presents with headache and fever. Physical exam shows temperature 37.9°C, blood pressure 118/75. Assessment: possible viral infection. Plan: acetaminophen for pain management, follow-up in 3-5 days.",
+                    "formId": "clinician_summary",
+                    "transcript": "Patient presents with headache and fever. Physical exam shows temperature 37.9°C, blood pressure 118/75. Assessment: possible viral infection. Plan: acetaminophen for pain management, follow-up in 3-5 days.",
+                    "reservationId": "test-reservation-123",
                     "doctorNotes": "Patient appears fatigued but alert. No signs of serious complications.",
                     "intakeAnswers": {
                         "chiefComplaint": "Headache and fever",
