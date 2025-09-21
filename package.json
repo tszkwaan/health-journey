@@ -9,7 +9,7 @@
     "lint": "cd frontend && npm run lint",
     "db:seed": "cd frontend && npm run db:seed",
     "install:frontend": "cd frontend && npm install",
-    "install:backend": "cd backend && pip install -e .",
+    "install:backend": "cd backend && pip3 install -e .",
     "install:all": "npm run install:frontend && npm run install:backend",
     "test": "cd tests && python test_summary.py",
     "test:enhanced": "cd tests && python test_summary_enhanced.py",
