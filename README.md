@@ -5,16 +5,20 @@ A comprehensive healthcare platform that streamlines patient care from intake th
 ## Demo
 
 ### Intake Process
-[📹 Watch Intake Process Demo](demo/intake.mov)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/sXoOlSeLNQ4" title="Intake Process Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+*Voice-enabled patient intake with real-time transcription*
 
 ### Q&A Bot
-[📹 Watch Q&A Bot Demo](demo/qna_bot.mov)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/CbsNa307Who" title="Q&A Bot Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+*AI-powered Q&A chatbot with PubMed integration*
 
 ### Consultation
-[📹 Watch Consultation Demo](demo/consultation.mov)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/m3mxLIFzTP8" title="Consultation Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+*Doctor consultation interface with form generation*
 
 ### Summary Generation
-[📹 Watch Summary Generation Demo](demo/summary_generation.mov)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/d8RHxhn3quk" title="Summary Generation Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+*AI-generated patient summaries and documentation*
 
 ## Quick Start
 
