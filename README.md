@@ -5,17 +5,16 @@ A comprehensive healthcare platform that streamlines patient care from intake th
 ## Demo
 
 ### Intake Process
-![Intake Process](demo/intake.mov)
-
-### Pre-consultation
-![Pre-consultation](demo/consultation.mov)
+[📹 Watch Intake Process Demo](demo/intake.mov)
 
 ### Q&A Bot
-![Q&A Bot](demo/qna_bot.mov)
+[📹 Watch Q&A Bot Demo](demo/qna_bot.mov)
+
+### Consultation
+[📹 Watch Consultation Demo](demo/consultation.mov)
 
 ### Summary Generation
-![Summary Generation](demo/summary_generation.mov)
-
+[📹 Watch Summary Generation Demo](demo/summary_generation.mov)
 
 ## Quick Start
 
