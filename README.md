@@ -84,3 +84,14 @@ docker compose up    # Start all services
 - **Backend**: Python FastAPI, LangChain
 - **Database**: PostgreSQL (Docker)
 - **AI**: Ollama LLM (Docker), RAG with PubMed
+
+## Test user accounts:
+
+Doctor
+emily.rodriguez@clinic.com
+password123
+
+Patient
+John Doe
+john.doe@example.com
+password123
