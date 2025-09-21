@@ -3,6 +3,7 @@ import { processIntakeMessage } from '@/lib/intake/langgraph';
 import { MessageIntakeRequest, MessageIntakeResponse } from '@/lib/intake/types';
 import { getSession } from '@/lib/intake/state';
 import { prisma } from '@/lib/prisma';
+import { OptimizedPHIRedactor } from '@/lib/phi-redaction-optimized';
 
 export async function POST(request: NextRequest): Promise<NextResponse<MessageIntakeResponse>> {
   try {
@@ -127,9 +128,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<MessageIn
       sessionId: result.sessionId,
       current_step: result.current_step,
       progress: result.progress,
-      utterance: result.utterance,
+      utterance: OptimizedPHIRedactor.redact(result.utterance), // Redact PHI from utterance
       requires_correction: result.requires_correction,
-      review_snapshot: result.review_snapshot
+      review_snapshot: result.review_snapshot ? OptimizedPHIRedactor.redact(result.review_snapshot) : null // Redact PHI from review snapshot
     };
     
     return NextResponse.json(response);

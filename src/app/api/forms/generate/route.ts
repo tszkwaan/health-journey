@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { OptimizedPHIRedactor } from '@/lib/phi-redaction-optimized';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +12,10 @@ export async function POST(request: NextRequest) {
     // Generate form data using LLM based on transcript
     const formData = await generateFormData(formId, transcript, clinicianSummary);
 
-    return NextResponse.json(formData);
+    // Redact PHI from form data before sending to client using optimized redactor
+    const redactedFormData = OptimizedPHIRedactor.redactObject(formData);
+
+    return NextResponse.json(redactedFormData);
   } catch (error) {
     console.error('Error generating form data:', error);
     return NextResponse.json({ error: 'Failed to generate form data' }, { status: 500 });

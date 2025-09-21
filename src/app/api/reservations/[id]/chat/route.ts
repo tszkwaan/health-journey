@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
 import { RAGService } from '@/lib/rag/ragService';
-import { PHIRedactor, safeLog } from '@/lib/phi-redaction';
+import { OptimizedPHIRedactor } from '@/lib/phi-redaction-optimized';
+import { safeLog } from '@/lib/phi-redaction';
 
 // Global RAG service instance
 const ragService = new RAGService();
@@ -115,13 +116,13 @@ export async function POST(
     // Generate RAG response
     const ragResponse = await ragService.generateResponse(message, reservationId, includeExternal);
 
-    // Redact PHI from response before sending to client
+    // Redact PHI from response before sending to client using optimized redactor
     const redactedResponse = {
       ...ragResponse,
-      response: PHIRedactor.redact(ragResponse.response),
+      response: OptimizedPHIRedactor.redact(ragResponse.response),
       sources: ragResponse.sources?.map(source => ({
         ...source,
-        content: PHIRedactor.redact(source.content)
+        content: OptimizedPHIRedactor.redact(source.content)
       }))
     };
 
